@@ -1,62 +1,64 @@
 # Juntaí — Status de implementação
 
-## Implementado em código Flutter
+Atualizado em 03/09/2026.
 
-- [x] Splash
-- [x] Onboarding
-- [x] Login
-- [x] Cadastro
-- [x] Recuperar senha
-- [x] Verificar e-mail
-- [x] Completar perfil
-- [x] Permissão/localização
-- [x] Home
-- [x] Pesquisa de atividades e pessoas
-- [x] Filtros
-- [x] Sininho/notificações
-- [x] Mapa demo
-- [x] GoogleMap real preparado por `REAL_MAPS=true`
-- [x] Criar atividade
-- [x] Editar atividade
-- [x] Cancelar atividade
-- [x] Detalhes
-- [x] Participar/sair
-- [x] Atividade privada / solicitação no backend
-- [x] Participantes
-- [x] Lista de chats
-- [x] Chat de grupo
-- [x] Perfil
-- [x] Editar perfil
-- [x] Perfil público
-- [x] Configurações
-- [x] Privacidade
-- [x] Usuários bloqueados
-- [x] Denúncia/bloqueio
-- [x] Empty/error/loading widgets
+## App Flutter
 
-## Backend preparado
+- [x] Splash, onboarding, autenticação e recuperação de senha
+- [x] Perfil, perfil público, seguir, bloquear e denunciar
+- [x] Home, pesquisa, filtros, mapa e localização
+- [x] Criar, editar e cancelar atividade
+- [x] Atividades públicas e privadas com solicitações
+- [x] Participantes e chat de grupo
+- [x] Conversas privadas entre usuários
+- [x] Foto em chat de grupo e privado
+- [x] Áudio em chat de grupo e privado enviado por URL (ImageKit via Render)
+- [x] Reprodução de áudio por URL com compatibilidade para áudios Base64 antigos
+- [x] Áudio de visualização única
+- [x] Editar mensagem de texto por até 15 minutos
+- [x] Excluir mensagem para mim
+- [x] Excluir mensagem para todos por até 48 horas
+- [x] Push para chat de grupo e mensagem privada
+- [x] Notificações, badge e navegação por push
+- [x] Permissões Android e iOS para microfone e mídia
 
-- [x] Firebase Auth repository
-- [x] Firestore activity repository
-- [x] Firebase chat repository
-- [x] Firebase profile repository
-- [x] Firebase notifications repository
-- [x] Firestore Security Rules
-- [x] Storage Rules
-- [x] Firestore indexes
-- [x] Cloud Functions join/leave
-- [x] Cloud Functions request/response private join
-- [x] Push de mensagens
-- [x] Reports
-- [x] Delete account
-- [x] Firebase Emulator config
+## Lugares, eventos e comércio
 
-## Precisa de credenciais externas para produção
+- [x] Perfil comercial
+- [x] Edição de perfil comercial
+- [x] Fluxo de análise/aprovação comercial
+- [x] Publicação bloqueada enquanto o perfil não estiver aprovado
+- [x] Publicações comerciais e eventos
+- [x] Editar publicação
+- [x] Arquivar publicação
+- [x] Limite de publicações ativas por plano
+- [x] Limite mensal real por plano
+- [x] Métricas de impressão e abertura
+- [x] Métrica de atividades criadas a partir de uma descoberta
+- [x] Métrica de participantes gerados, com deduplicação por usuário/descoberta
+- [x] Descobertas ordenadas por proximidade quando a localização estiver disponível
+- [x] Seguir comércio, abrir site e rota externa
 
-- [ ] `google-services.json`
-- [ ] `GoogleService-Info.plist`
-- [ ] Google Maps API key Android/iOS
-- [ ] ativar providers Google/Apple no Firebase
-- [ ] assinatura Android/iOS
+## Backend e segurança
 
-O projeto funciona visualmente em modo DEMO sem essas credenciais.
+- [x] Backend canônico na raiz (`server.js`)
+- [x] Upload autenticado de imagem
+- [x] Upload autenticado de áudio
+- [x] Firebase Admin usando variáveis de ambiente
+- [x] Firestore Rules para mensagens por URL
+- [x] Regras para edição e exclusão temporizadas de mensagens
+- [x] Regras para visualização única
+- [x] Push de mensagens privadas e de grupos
+- [x] Métricas comerciais protegidas pelo backend
+- [x] Reports, bloqueios e exclusão de conta
+
+## Antes de publicar nas lojas
+
+- [ ] Confirmar `GoogleService-Info.plist` no iOS
+- [ ] Confirmar Google Maps API key Android/iOS se Maps real for usado
+- [ ] Confirmar providers Google/Apple no Firebase
+- [ ] Confirmar assinatura release Android/iOS
+- [ ] Executar `flutter analyze`
+- [ ] Executar `flutter test`
+- [ ] Gerar e testar APK/AAB release em dispositivo real
+- [ ] Testar microfone, foto, push e chat com duas contas em dois aparelhos

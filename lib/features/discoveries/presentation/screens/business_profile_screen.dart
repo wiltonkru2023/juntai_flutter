@@ -18,11 +18,13 @@ class BusinessProfileScreen extends StatelessWidget {
             .doc(businessId)
             .snapshots(),
         builder: (context, snapshot) {
-          if (!snapshot.hasData)
+          if (!snapshot.hasData) {
             return const Center(child: CircularProgressIndicator());
-          if (!snapshot.data!.exists)
+          }
+          if (!snapshot.data!.exists) {
             return const Center(
                 child: Text('Perfil comercial não encontrado.'));
+          }
           final d = snapshot.data!.data()!;
           final uid = FirebaseAuth.instance.currentUser!.uid;
           final follow =
@@ -103,8 +105,9 @@ class BusinessProfileScreen extends StatelessWidget {
                             .where((p) => p.data()['status'] == 'published')
                             .map(Discovery.fromFirestore)
                             .toList();
-                        if (items.isEmpty)
+                        if (items.isEmpty) {
                           return const Text('Nenhuma publicação ativa.');
+                        }
                         return Column(children: [
                           for (final item in items)
                             Padding(

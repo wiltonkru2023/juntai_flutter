@@ -31,20 +31,27 @@ class UserProfile {
     this.lastSeenAt,
   });
 
-  UserProfile copyWith({String? name, String? email, String? city, String? bio, String? photoUrl, List<String>? interests}) => UserProfile(
-    id: id,
-    name: name ?? this.name,
-    email: email ?? this.email,
-    photoUrl: photoUrl ?? this.photoUrl,
-    city: city ?? this.city,
-    bio: bio ?? this.bio,
-    verified: verified,
-    rating: rating,
-    interests: interests ?? this.interests,
-    activitiesCreated: activitiesCreated,
-    activitiesJoined: activitiesJoined,
-    friendsCount: friendsCount,
-    createdAt: createdAt,
-    lastSeenAt: lastSeenAt,
-  );
+  UserProfile copyWith(
+          {String? name,
+          String? email,
+          String? city,
+          String? bio,
+          String? photoUrl,
+          List<String>? interests}) =>
+      UserProfile(
+        id: id,
+        name: name ?? this.name,
+        email: email ?? this.email,
+        photoUrl: photoUrl ?? this.photoUrl,
+        city: city ?? this.city,
+        bio: bio ?? this.bio,
+        verified: verified,
+        rating: rating,
+        interests: interests ?? this.interests,
+        activitiesCreated: activitiesCreated,
+        activitiesJoined: activitiesJoined,
+        friendsCount: friendsCount,
+        createdAt: createdAt,
+        lastSeenAt: lastSeenAt,
+      );
 }

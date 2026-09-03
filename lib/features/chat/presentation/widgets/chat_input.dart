@@ -66,7 +66,9 @@ class _ChatInputState extends State<ChatInput> {
     if (widget.controller.text.trim().isNotEmpty ||
         widget.sending ||
         widget.uploadingImage ||
-        gestureActive) return;
+        gestureActive) {
+      return;
+    }
     pointer = event.pointer;
     origin = event.position;
     cancelled = false;

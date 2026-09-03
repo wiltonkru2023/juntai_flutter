@@ -24,15 +24,11 @@ class PrivacyScreen extends StatelessWidget {
 
     try {
       if (value &&
-          (key == 'chatNotifications' ||
-              key == 'activityNotifications')) {
+          (key == 'chatNotifications' || key == 'activityNotifications')) {
         await NotificationService.instance.requestPermission();
       }
 
-      await FirebaseFirestore.instance
-          .collection('users')
-          .doc(user.uid)
-          .set(
+      await FirebaseFirestore.instance.collection('users').doc(user.uid).set(
         {
           key: value,
           'updatedAt': FieldValue.serverTimestamp(),
@@ -62,9 +58,8 @@ class PrivacyScreen extends StatelessWidget {
       );
     }
 
-    final userRef = FirebaseFirestore.instance
-        .collection('users')
-        .doc(user.uid);
+    final userRef =
+        FirebaseFirestore.instance.collection('users').doc(user.uid);
 
     return Scaffold(
       appBar: AppBar(
@@ -100,7 +95,8 @@ class PrivacyScreen extends StatelessWidget {
 
           final data = snapshot.data?.data() ?? <String, dynamic>{};
 
-          bool value(String key) => data[key] is bool ? data[key] as bool : true;
+          bool value(String key) =>
+              data[key] is bool ? data[key] as bool : true;
 
           Widget setting(
             String key,

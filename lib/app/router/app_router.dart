@@ -16,12 +16,12 @@ import '../../features/auth/presentation/screens/verify_email_screen.dart';
 import '../../features/chat/presentation/screens/conversations_screen.dart';
 import '../../features/chat/presentation/screens/group_chat_screen.dart';
 import '../../features/chat/presentation/screens/private_chat_screen.dart';
-import '../../features/home/presentation/screens/home_screen.dart';
+import '../../features/discoveries/presentation/screens/business_center_screen.dart';
+import '../../features/discoveries/presentation/screens/business_profile_screen.dart';
+import '../../features/discoveries/presentation/screens/create_discovery_screen.dart';
 import '../../features/discoveries/presentation/screens/discoveries_screen.dart';
 import '../../features/discoveries/presentation/screens/discovery_details_screen.dart';
-import '../../features/discoveries/presentation/screens/business_center_screen.dart';
-import '../../features/discoveries/presentation/screens/create_discovery_screen.dart';
-import '../../features/discoveries/presentation/screens/business_profile_screen.dart';
+import '../../features/home/presentation/screens/home_screen.dart';
 import '../../features/map/presentation/screens/map_screen.dart';
 import '../../features/notifications/presentation/screens/notifications_screen.dart';
 import '../../features/profile/presentation/screens/blocked_users_screen.dart';
@@ -44,22 +44,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
     navigatorKey: notificationNavigatorKey,
     initialLocation: '/splash',
     routes: [
+      GoRoute(path: '/splash', builder: (_, __) => const SplashScreen()),
       GoRoute(
-        path: '/splash',
-        builder: (_, __) => const SplashScreen(),
-      ),
-      GoRoute(
-        path: '/onboarding',
-        builder: (_, __) => const OnboardingScreen(),
-      ),
-      GoRoute(
-        path: '/login',
-        builder: (_, __) => const LoginScreen(),
-      ),
-      GoRoute(
-        path: '/register',
-        builder: (_, __) => const RegisterScreen(),
-      ),
+          path: '/onboarding', builder: (_, __) => const OnboardingScreen()),
+      GoRoute(path: '/login', builder: (_, __) => const LoginScreen()),
+      GoRoute(path: '/register', builder: (_, __) => const RegisterScreen()),
       GoRoute(
         path: '/forgot-password',
         builder: (_, __) => const ForgotPasswordScreen(),
@@ -76,66 +65,59 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: '/location-permission',
         builder: (_, __) => const LocationPermissionScreen(),
       ),
-      GoRoute(
-        path: '/help',
-        builder: (_, __) => const HelpScreen(),
-      ),
-      GoRoute(
-        path: '/terms',
-        builder: (_, __) => const TermsScreen(),
-      ),
+      GoRoute(path: '/help', builder: (_, __) => const HelpScreen()),
+      GoRoute(path: '/terms', builder: (_, __) => const TermsScreen()),
       GoRoute(
         path: '/privacy-policy',
         builder: (_, __) => const PrivacyPolicyScreen(),
       ),
       ShellRoute(
-        builder: (
-          context,
-          state,
-          child,
-        ) =>
-            MainShell(
+        builder: (context, state, child) => MainShell(
           location: state.uri.path,
           child: child,
         ),
         routes: [
-          GoRoute(
-            path: '/home',
-            builder: (_, __) => const HomeScreen(),
-          ),
-          GoRoute(
-            path: '/map',
-            builder: (_, __) => const MapScreen(),
-          ),
+          GoRoute(path: '/home', builder: (_, __) => const HomeScreen()),
+          GoRoute(path: '/map', builder: (_, __) => const MapScreen()),
           GoRoute(
             path: '/activity/create',
             builder: (_, state) => CreateActivityScreen(
-                sourceDiscoveryId: state.uri.queryParameters['source']),
+              sourceDiscoveryId: state.uri.queryParameters['source'],
+            ),
           ),
           GoRoute(
-              path: '/discover', builder: (_, __) => const DiscoveriesScreen()),
-          GoRoute(
-              path: '/discovery/:id',
-              builder: (_, state) => DiscoveryDetailsScreen(
-                  discoveryId: state.pathParameters['id']!)),
-          GoRoute(
-              path: '/business',
-              builder: (_, __) => const BusinessCenterScreen()),
-          GoRoute(
-              path: '/business/:id',
-              builder: (_, state) => BusinessProfileScreen(
-                  businessId: state.pathParameters['id']!)),
-          GoRoute(
-              path: '/business/post/create',
-              builder: (_, __) => const CreateDiscoveryScreen()),
-          GoRoute(
-            path: '/chats',
-            builder: (_, __) => const ConversationsScreen(),
+            path: '/discover',
+            builder: (_, __) => const DiscoveriesScreen(),
           ),
           GoRoute(
-            path: '/profile',
-            builder: (_, __) => const ProfileScreen(),
+            path: '/discovery/:id',
+            builder: (_, state) => DiscoveryDetailsScreen(
+              discoveryId: state.pathParameters['id']!,
+            ),
           ),
+          GoRoute(
+            path: '/business',
+            builder: (_, __) => const BusinessCenterScreen(),
+          ),
+          GoRoute(
+            path: '/business/:id',
+            builder: (_, state) => BusinessProfileScreen(
+              businessId: state.pathParameters['id']!,
+            ),
+          ),
+          GoRoute(
+            path: '/business/post/create',
+            builder: (_, __) => const CreateDiscoveryScreen(),
+          ),
+          GoRoute(
+            path: '/business/post/:id/edit',
+            builder: (_, state) => CreateDiscoveryScreen(
+              postId: state.pathParameters['id']!,
+            ),
+          ),
+          GoRoute(
+              path: '/chats', builder: (_, __) => const ConversationsScreen()),
+          GoRoute(path: '/profile', builder: (_, __) => const ProfileScreen()),
           GoRoute(
             path: '/activity/:id',
             builder: (_, state) => ActivityDetailsScreen(
@@ -162,8 +144,9 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           ),
           GoRoute(
             path: '/message/:userId',
-            builder: (_, state) =>
-                PrivateChatScreen(otherUserId: state.pathParameters['userId']!),
+            builder: (_, state) => PrivateChatScreen(
+              otherUserId: state.pathParameters['userId']!,
+            ),
           ),
           GoRoute(
             path: '/profile/edit',
@@ -176,42 +159,23 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             ),
           ),
           GoRoute(
-            path: '/settings',
-            builder: (_, __) => const SettingsScreen(),
-          ),
-          GoRoute(
-            path: '/privacy',
-            builder: (_, __) => const PrivacyScreen(),
-          ),
+              path: '/settings', builder: (_, __) => const SettingsScreen()),
+          GoRoute(path: '/privacy', builder: (_, __) => const PrivacyScreen()),
           GoRoute(
             path: '/blocked-users',
             builder: (_, __) => const BlockedUsersScreen(),
           ),
         ],
       ),
-      GoRoute(
-        path: '/search',
-        builder: (_, __) => const SearchScreen(),
-      ),
-      GoRoute(
-        path: '/filters',
-        builder: (_, __) => const FiltersScreen(),
-      ),
+      GoRoute(path: '/search', builder: (_, __) => const SearchScreen()),
+      GoRoute(path: '/filters', builder: (_, __) => const FiltersScreen()),
       GoRoute(
         path: '/notifications',
         builder: (_, __) => const NotificationsScreen(),
       ),
     ],
-    errorBuilder: (
-      context,
-      state,
-    ) =>
-        Scaffold(
-      body: Center(
-        child: Text(
-          'Tela não encontrada: ${state.uri}',
-        ),
-      ),
+    errorBuilder: (context, state) => Scaffold(
+      body: Center(child: Text('Tela não encontrada: ${state.uri}')),
     ),
   );
 });

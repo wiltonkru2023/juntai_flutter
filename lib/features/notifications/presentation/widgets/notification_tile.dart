@@ -16,7 +16,7 @@ class NotificationTile extends StatelessWidget {
   IconData get icon => switch (notification.type) {
         'join_approved' => Icons.check_circle_rounded,
         'join_rejected' => Icons.cancel_rounded,
-        'new_message' => Icons.chat_bubble_rounded,
+        'new_message' || 'private_message' => Icons.chat_bubble_rounded,
         'new_participant' => Icons.person_add_alt_1_rounded,
         'activity_reminder' => Icons.schedule_rounded,
         'activity_updated' => Icons.edit_calendar_rounded,

@@ -13,8 +13,7 @@ class LocationService {
   const LocationService._();
 
   static Future<Position> getCurrentPosition() async {
-    final serviceEnabled =
-        await Geolocator.isLocationServiceEnabled();
+    final serviceEnabled = await Geolocator.isLocationServiceEnabled();
 
     if (!serviceEnabled) {
       throw const LocationServiceException(
@@ -22,12 +21,10 @@ class LocationService {
       );
     }
 
-    var permission =
-        await Geolocator.checkPermission();
+    var permission = await Geolocator.checkPermission();
 
     if (permission == LocationPermission.denied) {
-      permission =
-          await Geolocator.requestPermission();
+      permission = await Geolocator.requestPermission();
     }
 
     if (permission == LocationPermission.denied) {
@@ -36,8 +33,7 @@ class LocationService {
       );
     }
 
-    if (permission ==
-        LocationPermission.deniedForever) {
+    if (permission == LocationPermission.deniedForever) {
       throw const LocationServiceException(
         'A permissão de localização foi bloqueada. '
         'Abra as configurações do aplicativo para permitir.',

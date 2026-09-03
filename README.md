@@ -1,27 +1,55 @@
 # Juntaí — Flutter
 
-Aplicativo social para encontrar atividades e pessoas próximas, construído a partir dos mockups aprovados.
+Aplicativo social para encontrar pessoas, atividades, lugares e eventos próximos.
 
-## O que já existe
-- Splash e onboarding
-- Login, cadastro, recuperação, completar perfil e localização
-- Home, pesquisa e filtros
-- Mapa demo + suporte a Google Maps real
-- Criar, editar, cancelar e participar de atividades
-- Detalhes e participantes
-- Lista de chats e chat de grupo
-- Notificações/sininho
-- Perfil, editar perfil, configurações e privacidade
-- Bloquear e denunciar
-- Firebase repositories, Security Rules, Storage Rules, Functions e índices
+## Principais recursos
 
-## Rodar
-Este pacote contém o código fonte. Se as pastas nativas ainda não existirem no seu computador:
+- autenticação e perfis de usuário;
+- atividades públicas e privadas;
+- participação, solicitações e grupos;
+- chat de grupo e conversa privada;
+- texto, foto e áudio;
+- edição de texto por 15 minutos;
+- exclusão para mim e exclusão para todos por 48 horas;
+- áudio armazenado como mídia externa e salvo no Firestore apenas por URL;
+- notificações push;
+- bloqueio e denúncia;
+- área comercial com aprovação, limites de plano, edição e arquivamento;
+- descobertas de comércios/eventos ordenadas por proximidade quando possível;
+- métricas de visualização, abertura, grupos criados e participantes gerados.
+
+## Backend
+
+O backend de produção é o `server.js` da raiz e é executado pelo Render usando o `package.json` da raiz.
+
+Variáveis obrigatórias no Render:
+
+- `FIREBASE_PROJECT_ID`
+- `FIREBASE_CLIENT_EMAIL`
+- `FIREBASE_PRIVATE_KEY`
+- `IMAGEKIT_PRIVATE_KEY` para upload de imagens e áudios
+- `IMAGEKIT_PUBLIC_KEY` e `IMAGEKIT_URL_ENDPOINT` quando usados
+
+## Desenvolvimento
 
 ```bash
-flutter create . --project-name juntai --org app.juntai --platforms android,ios
 flutter pub get
+flutter analyze
+flutter test
 flutter run
 ```
 
-O app roda em modo demonstração sem Firebase configurado. Consulte `docs/firebase-setup.md` e `docs/maps-setup.md` para produção.
+Validar o backend:
+
+```bash
+npm ci
+npm run check
+```
+
+Depois de alterar regras/índices:
+
+```bash
+firebase deploy --only firestore:rules,firestore:indexes --project juntai-f7605
+```
+
+Consulte `PROJECT_STATUS.md` para o checklist de release.

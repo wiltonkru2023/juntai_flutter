@@ -83,8 +83,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
       if (data['interests'] is List) {
         selectedInterests.addAll(
-          (data['interests'] as List)
-              .map((item) => item.toString()),
+          (data['interests'] as List).map((item) => item.toString()),
         );
       }
     } catch (error) {
@@ -120,14 +119,12 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                 ListTile(
                   leading: const Icon(Icons.photo_library_outlined),
                   title: const Text('Escolher da galeria'),
-                  onTap: () =>
-                      Navigator.pop(sheetContext, 'gallery'),
+                  onTap: () => Navigator.pop(sheetContext, 'gallery'),
                 ),
                 ListTile(
                   leading: const Icon(Icons.photo_camera_outlined),
                   title: const Text('Tirar uma foto'),
-                  onTap: () =>
-                      Navigator.pop(sheetContext, 'camera'),
+                  onTap: () => Navigator.pop(sheetContext, 'camera'),
                 ),
               ],
             ),
@@ -169,10 +166,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       final persistedUrl =
           '${uploaded.url}${separator}v=${DateTime.now().millisecondsSinceEpoch}';
 
-      await FirebaseFirestore.instance
-          .collection('users')
-          .doc(user.uid)
-          .set(
+      await FirebaseFirestore.instance.collection('users').doc(user.uid).set(
         {
           'photoUrl': persistedUrl,
           'updatedAt': FieldValue.serverTimestamp(),
@@ -286,8 +280,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           Row(
             children: [
               IconButton(
-                onPressed:
-                    saving ? null : () => context.go('/profile'),
+                onPressed: saving ? null : () => context.go('/profile'),
                 icon: const Icon(Icons.arrow_back_rounded),
               ),
               const Text(
@@ -371,8 +364,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
             spacing: 8,
             runSpacing: 8,
             children: availableInterests.map((interest) {
-              final selected =
-                  selectedInterests.contains(interest);
+              final selected = selectedInterests.contains(interest);
 
               return FilterChip(
                 label: Text(interest),
@@ -394,8 +386,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           const SizedBox(height: 28),
           AppButton(
             label: saving ? 'Salvando...' : 'Salvar perfil',
-            onPressed:
-                saving || uploadingPhoto ? null : save,
+            onPressed: saving || uploadingPhoto ? null : save,
           ),
         ],
       ),

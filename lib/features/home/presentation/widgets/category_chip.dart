@@ -1,2 +1,38 @@
-import 'package:flutter/material.dart'; import '../../../../shared/enums/activity_category.dart';
-class CategoryChipCard extends StatelessWidget{const CategoryChipCard({super.key,required this.category,this.selected=false,this.onTap});final ActivityCategory category;final bool selected;final VoidCallback? onTap;@override Widget build(BuildContext context)=>InkWell(onTap:onTap,borderRadius:BorderRadius.circular(20),child:Container(width:92,padding:const EdgeInsets.symmetric(horizontal:8,vertical:12),decoration:BoxDecoration(color:Colors.white,borderRadius:BorderRadius.circular(20),border:selected?Border.all(color:category.color,width:1.5):null,boxShadow:[BoxShadow(color:Colors.black.withValues(alpha:.055),blurRadius:14,offset:const Offset(0,5))]),child:Column(mainAxisSize:MainAxisSize.min,children:[Icon(category.icon,color:category.color,size:31),const SizedBox(height:8),Text(category.label,style:const TextStyle(fontWeight:FontWeight.w600,fontSize:13),maxLines:1,overflow:TextOverflow.ellipsis)])));}
+import 'package:flutter/material.dart';
+import '../../../../shared/enums/activity_category.dart';
+
+class CategoryChipCard extends StatelessWidget {
+  const CategoryChipCard(
+      {super.key, required this.category, this.selected = false, this.onTap});
+  final ActivityCategory category;
+  final bool selected;
+  final VoidCallback? onTap;
+  @override
+  Widget build(BuildContext context) => InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(20),
+      child: Container(
+          width: 92,
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
+          decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(20),
+              border: selected
+                  ? Border.all(color: category.color, width: 1.5)
+                  : null,
+              boxShadow: [
+                BoxShadow(
+                    color: Colors.black.withValues(alpha: .055),
+                    blurRadius: 14,
+                    offset: const Offset(0, 5))
+              ]),
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            Icon(category.icon, color: category.color, size: 31),
+            const SizedBox(height: 8),
+            Text(category.label,
+                style:
+                    const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis)
+          ])));
+}

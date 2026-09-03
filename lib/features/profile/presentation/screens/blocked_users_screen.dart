@@ -141,10 +141,8 @@ class _BlockedUserTile extends StatelessWidget {
     }
 
     return FutureBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-      future: FirebaseFirestore.instance
-          .collection('users')
-          .doc(blockedId)
-          .get(),
+      future:
+          FirebaseFirestore.instance.collection('users').doc(blockedId).get(),
       builder: (context, snapshot) {
         final data = snapshot.data?.data();
         final name = (data?['name'] ?? 'Usuário').toString();

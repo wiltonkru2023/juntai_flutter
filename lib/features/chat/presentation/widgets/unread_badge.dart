@@ -1,2 +1,15 @@
-import 'package:flutter/material.dart'; import '../../../../app/theme/app_colors.dart';
-class UnreadBadge extends StatelessWidget{const UnreadBadge({super.key,required this.count});final int count;@override Widget build(BuildContext context)=>count<=0?const SizedBox.shrink():CircleAvatar(radius:10,backgroundColor:AppColors.primary,child:Text('$count',style:const TextStyle(color:Colors.white,fontSize:10)));}
+import 'package:flutter/material.dart';
+import '../../../../app/theme/app_colors.dart';
+
+class UnreadBadge extends StatelessWidget {
+  const UnreadBadge({super.key, required this.count});
+  final int count;
+  @override
+  Widget build(BuildContext context) => count <= 0
+      ? const SizedBox.shrink()
+      : CircleAvatar(
+          radius: 10,
+          backgroundColor: AppColors.primary,
+          child: Text('$count',
+              style: const TextStyle(color: Colors.white, fontSize: 10)));
+}

@@ -1,4 +1,3 @@
-
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -70,8 +69,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
 
       final data = snapshot.data()!;
 
-      final profileCompleted =
-          data['profileCompleted'] == true;
+      final profileCompleted = data['profileCompleted'] == true;
 
       if (!mounted) return;
 
@@ -111,11 +109,11 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
           child: const Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const JuntaiMark(size: 96),
-              const SizedBox(height: 18),
-              const JuntaiLogo(size: 60),
-              const SizedBox(height: 14),
-              const Text(
+              JuntaiMark(size: 96),
+              SizedBox(height: 18),
+              JuntaiLogo(size: 60),
+              SizedBox(height: 14),
+              Text(
                 'Encontre. Participe. Juntaí.',
                 style: TextStyle(
                   color: AppColors.textSecondary,

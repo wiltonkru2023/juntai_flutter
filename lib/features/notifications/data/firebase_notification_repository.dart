@@ -3,8 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../../shared/models/notification_model.dart';
 import 'notification_repository.dart';
 
-class FirebaseNotificationRepository
-    implements NotificationRepository {
+class FirebaseNotificationRepository implements NotificationRepository {
   FirebaseNotificationRepository(this.db);
 
   final FirebaseFirestore db;
@@ -30,28 +29,14 @@ class FirebaseNotificationRepository
 
               return NotificationModel(
                 id: document.id,
-                type:
-                    (data['type'] ?? 'generic')
-                        .toString(),
-                title:
-                    (data['title'] ?? '')
-                        .toString(),
-                body:
-                    (data['body'] ?? '')
-                        .toString(),
-                activityId:
-                    data['activityId']
-                        ?.toString(),
-                actorId:
-                    data['actorId']
-                        ?.toString(),
-                read:
-                    data['read'] == true,
-                createdAt:
-                    (data['createdAt']
-                                as Timestamp?)
-                            ?.toDate() ??
-                        DateTime.now(),
+                type: (data['type'] ?? 'generic').toString(),
+                title: (data['title'] ?? '').toString(),
+                body: (data['body'] ?? '').toString(),
+                activityId: data['activityId']?.toString(),
+                actorId: data['actorId']?.toString(),
+                read: data['read'] == true,
+                createdAt: (data['createdAt'] as Timestamp?)?.toDate() ??
+                    DateTime.now(),
               );
             },
           ).toList(),

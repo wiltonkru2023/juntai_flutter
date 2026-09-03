@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:convert';
 import 'dart:io';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -12,6 +11,7 @@ import 'package:record/record.dart';
 import '../../../../app/theme/app_colors.dart';
 import '../../../../core/extensions/context_extensions.dart';
 import '../../../../core/services/api_service.dart';
+import '../../../../core/services/audio_upload_service.dart';
 import '../../../../core/services/image_upload_service.dart';
 import '../../../../core/widgets/app_avatar.dart';
 import '../../../../shared/models/chat_message.dart';
@@ -80,11 +80,20 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     } on ApiException catch (error) {
       if (mounted) {
         context.snack(
-          'Mensagem enviada, mas a notificação não pôde ser enviada: ${error.message}',
+          'Mensagem enviada, mas a notificação falhou: ${error.message}',
         );
       }
     }
   }
+
+  Map<String, dynamic> _baseMessage(User user, String senderName) => {
+        'senderId': user.uid,
+        'senderName': senderName,
+        'createdAt': FieldValue.serverTimestamp(),
+        'seenBy': [user.uid],
+        'hiddenFor': <String>[],
+        'deletedForEveryone': false,
+      };
 
   Future<void> send() async {
     if (sending || recording) return;
@@ -93,7 +102,6 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     if (text.isEmpty) return;
 
     final user = FirebaseAuth.instance.currentUser;
-
     if (user == null) {
       context.snack('Sua sessão expirou. Entre novamente.');
       return;
@@ -103,18 +111,10 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
 
     try {
       final senderName = await _senderName(user);
-
       final messageRef = await chatRef.add({
-        'senderId': user.uid,
-        'senderName': senderName,
+        ..._baseMessage(user, senderName),
         'type': 'text',
         'text': text,
-        'mediaUrl': null,
-        'audioBase64': null,
-        'audioMimeType': null,
-        'audioDurationMs': 0,
-        'createdAt': FieldValue.serverTimestamp(),
-        'seenBy': [user.uid],
       });
 
       input.clear();
@@ -122,17 +122,13 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
       await _notifyMessage(messageRef.id);
     } on FirebaseException catch (error) {
       if (!mounted) return;
-
-      if (error.code == 'permission-denied') {
-        context.snack('Você não tem acesso ao chat desta atividade.');
-      } else {
-        context.snack(
-          error.message ?? 'Não foi possível enviar a mensagem.',
-        );
-      }
+      context.snack(
+        error.code == 'permission-denied'
+            ? 'Você não tem acesso ao chat desta atividade.'
+            : error.message ?? 'Não foi possível enviar a mensagem.',
+      );
     } catch (_) {
-      if (!mounted) return;
-      context.snack('Não foi possível enviar a mensagem.');
+      if (mounted) context.snack('Não foi possível enviar a mensagem.');
     } finally {
       if (mounted) setState(() => sending = false);
     }
@@ -142,7 +138,6 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     if (sending || recording) return;
 
     final user = FirebaseAuth.instance.currentUser;
-
     if (user == null) {
       context.snack('Sua sessão expirou. Entre novamente.');
       return;
@@ -160,37 +155,26 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
         maxHeight: 1600,
         imageQuality: 80,
       );
-
       if (uploaded == null) return;
 
       final senderName = await _senderName(user);
-
       final messageRef = await chatRef.add({
-        'senderId': user.uid,
-        'senderName': senderName,
+        ..._baseMessage(user, senderName),
         'type': 'image',
         'text': '',
         'mediaUrl': uploaded.url,
-        'audioBase64': null,
-        'audioMimeType': null,
-        'audioDurationMs': 0,
-        'createdAt': FieldValue.serverTimestamp(),
-        'seenBy': [user.uid],
       });
 
       _scrollToBottom();
       await _notifyMessage(messageRef.id);
     } on ApiException catch (error) {
-      if (!mounted) return;
-      context.snack(error.message);
+      if (mounted) context.snack(error.message);
     } on FirebaseException catch (error) {
-      if (!mounted) return;
-      context.snack(
-        error.message ?? 'Não foi possível enviar a foto.',
-      );
+      if (mounted) {
+        context.snack(error.message ?? 'Não foi possível enviar a foto.');
+      }
     } catch (_) {
-      if (!mounted) return;
-      context.snack('Não foi possível enviar a foto.');
+      if (mounted) context.snack('Não foi possível enviar a foto.');
     } finally {
       if (mounted) {
         setState(() {
@@ -206,7 +190,6 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
 
     try {
       final allowed = await recorder.hasPermission();
-
       if (!allowed) {
         if (mounted) {
           context.snack(
@@ -241,26 +224,24 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
       });
 
       recordTimer?.cancel();
-      recordTimer = Timer.periodic(
-        const Duration(seconds: 1),
-        (timer) {
-          if (!mounted || !recording) {
-            timer.cancel();
-            return;
-          }
+      recordTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+        if (!mounted || !recording) {
+          timer.cancel();
+          return;
+        }
 
-          setState(() => recordingSeconds++);
+        setState(() => recordingSeconds++);
+        if (recordingSeconds >= 60) {
+          timer.cancel();
+          stopRecording();
+        }
+      });
 
-          if (recordingSeconds >= 60) {
-            timer.cancel();
-            stopRecording();
-          }
-        },
-      );
       return true;
     } catch (_) {
-      if (mounted)
+      if (mounted) {
         context.snack('Não foi possível iniciar a gravação de áudio.');
+      }
       return false;
     }
   }
@@ -274,7 +255,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     try {
       await recorder.cancel();
     } catch (_) {
-      // Ignora falha ao descartar um arquivo temporário.
+      // Ignora falha ao descartar temporário.
     } finally {
       if (mounted) {
         setState(() {
@@ -291,7 +272,6 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
 
     stoppingRecording = true;
     recordTimer?.cancel();
-
     final durationSeconds = recordingSeconds.clamp(1, 60);
 
     if (mounted) {
@@ -302,49 +282,45 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     }
 
     String? path;
-
     try {
       path = await recorder.stop();
-
       if (path == null) {
-        throw Exception('Arquivo de áudio não encontrado.');
-      }
-
-      final file = File(path);
-      final bytes = await file.readAsBytes();
-
-      // Mantém cada documento bem abaixo do limite de 1 MiB do Firestore.
-      if (bytes.length > 650 * 1024) {
-        throw Exception(
-            'O áudio ficou grande demais. Grave uma mensagem menor.');
+        throw const ApiException(
+          message: 'Arquivo de áudio não encontrado.',
+          code: 'audio-file-missing',
+        );
       }
 
       final user = FirebaseAuth.instance.currentUser;
       if (user == null) {
-        throw Exception('Sua sessão expirou.');
+        throw const ApiException(
+          message: 'Sua sessão expirou.',
+          code: 'unauthenticated',
+        );
       }
 
+      final uploaded = await AudioUploadService.instance.uploadFile(
+        File(path),
+        purpose: 'chat',
+      );
       final senderName = await _senderName(user);
 
       final messageRef = await chatRef.add({
-        'senderId': user.uid,
-        'senderName': senderName,
+        ..._baseMessage(user, senderName),
         'type': 'audio',
         'text': '',
-        'mediaUrl': null,
-        'audioBase64': base64Encode(bytes),
+        'audioUrl': uploaded.url,
         'audioMimeType': 'audio/mp4',
         'audioDurationMs': durationSeconds * 1000,
         'viewOnce': viewOnceAudio,
-        'createdAt': FieldValue.serverTimestamp(),
-        'seenBy': [user.uid],
       });
 
       _scrollToBottom();
       await _notifyMessage(messageRef.id);
+    } on ApiException catch (error) {
+      if (mounted) context.snack(error.message);
     } catch (error) {
-      if (!mounted) return;
-      context.snack('Não foi possível enviar o áudio: $error');
+      if (mounted) context.snack('Não foi possível enviar o áudio: $error');
     } finally {
       if (path != null) {
         try {
@@ -366,13 +342,181 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   void _scrollToBottom() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!scroll.hasClients) return;
-
       scroll.animateTo(
         scroll.position.maxScrollExtent,
         duration: const Duration(milliseconds: 250),
         curve: Curves.easeOut,
       );
     });
+  }
+
+  void _markSeen(
+    List<QueryDocumentSnapshot<Map<String, dynamic>>> docs,
+    String uid,
+  ) {
+    final pending = docs.where((doc) {
+      final data = doc.data();
+      final seenBy = data['seenBy'];
+      return data['senderId'] != uid &&
+          (seenBy is! List || !seenBy.contains(uid));
+    }).toList();
+
+    if (pending.isEmpty) return;
+
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      for (final doc in pending) {
+        try {
+          await doc.reference.update({
+            'seenBy': FieldValue.arrayUnion([uid]),
+          });
+        } catch (_) {}
+      }
+    });
+  }
+
+  Future<void> _editMessage(
+    DocumentReference<Map<String, dynamic>> ref,
+    ChatMessage message,
+  ) async {
+    if (!message.canEdit) {
+      context.snack('O prazo de 15 minutos para editar terminou.');
+      return;
+    }
+
+    final controller = TextEditingController(text: message.text);
+    final value = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Editar mensagem'),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          minLines: 1,
+          maxLines: 5,
+          maxLength: 4000,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            onPressed: () {
+              final text = controller.text.trim();
+              if (text.isNotEmpty) Navigator.pop(dialogContext, text);
+            },
+            child: const Text('Salvar'),
+          ),
+        ],
+      ),
+    );
+    controller.dispose();
+
+    if (value == null || value == message.text) return;
+
+    try {
+      await ref.update({
+        'text': value,
+        'editedAt': FieldValue.serverTimestamp(),
+      });
+    } on FirebaseException catch (error) {
+      if (mounted) {
+        context.snack(error.message ?? 'Não foi possível editar a mensagem.');
+      }
+    }
+  }
+
+  Future<void> _deleteForMe(
+    DocumentReference<Map<String, dynamic>> ref,
+    String uid,
+  ) async {
+    try {
+      await ref.update({
+        'hiddenFor': FieldValue.arrayUnion([uid]),
+      });
+    } on FirebaseException catch (error) {
+      if (mounted) {
+        context.snack(error.message ?? 'Não foi possível excluir a mensagem.');
+      }
+    }
+  }
+
+  Future<void> _deleteForEveryone(
+    DocumentReference<Map<String, dynamic>> ref,
+    ChatMessage message,
+    String uid,
+  ) async {
+    if (!message.canDeleteForEveryone) {
+      context.snack('O prazo para excluir para todos terminou.');
+      return;
+    }
+
+    try {
+      await ref.update({
+        'deletedForEveryone': true,
+        'deletedBy': uid,
+        'deletedAt': FieldValue.serverTimestamp(),
+        'text': '',
+        'mediaUrl': null,
+        'audioUrl': null,
+        'audioBase64': null,
+      });
+    } on FirebaseException catch (error) {
+      if (mounted) {
+        context.snack(error.message ?? 'Não foi possível excluir para todos.');
+      }
+    }
+  }
+
+  Future<void> _showMessageActions(
+    DocumentReference<Map<String, dynamic>> ref,
+    ChatMessage message,
+    String uid,
+  ) async {
+    await showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      builder: (sheetContext) => SafeArea(
+        child: Wrap(
+          children: [
+            if (message.canEdit)
+              ListTile(
+                leading: const Icon(Icons.edit_rounded),
+                title: const Text('Editar mensagem'),
+                subtitle: const Text('Disponível por 15 minutos'),
+                onTap: () {
+                  Navigator.pop(sheetContext);
+                  _editMessage(ref, message);
+                },
+              ),
+            ListTile(
+              leading: const Icon(Icons.delete_outline_rounded),
+              title: const Text('Excluir para mim'),
+              onTap: () {
+                Navigator.pop(sheetContext);
+                _deleteForMe(ref, uid);
+              },
+            ),
+            if (message.canDeleteForEveryone)
+              ListTile(
+                leading: const Icon(
+                  Icons.delete_forever_rounded,
+                  color: AppColors.error,
+                ),
+                title: const Text(
+                  'Excluir para todos',
+                  style: TextStyle(color: AppColors.error),
+                ),
+                subtitle: const Text('Disponível por até 48 horas'),
+                onTap: () {
+                  Navigator.pop(sheetContext);
+                  _deleteForEveryone(ref, message, uid);
+                },
+              ),
+          ],
+        ),
+      ),
+    );
   }
 
   Future<void> _reportConversation(String reason) async {
@@ -384,14 +528,11 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
         details: 'Conversa da atividade ${widget.activityId}',
       );
 
-      if (!mounted) return;
-      context.snack('Denúncia enviada. Obrigado por avisar.');
+      if (mounted) context.snack('Denúncia enviada. Obrigado por avisar.');
     } on ApiException catch (error) {
-      if (!mounted) return;
-      context.snack(error.message);
+      if (mounted) context.snack(error.message);
     } catch (_) {
-      if (!mounted) return;
-      context.snack('Não foi possível enviar a denúncia.');
+      if (mounted) context.snack('Não foi possível enviar a denúncia.');
     }
   }
 
@@ -417,10 +558,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
             children: [
               const Text(
                 'Denunciar conversa',
-                style: TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.w800,
-                ),
+                style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800),
               ),
               const SizedBox(height: 10),
               for (final reason in reasons)
@@ -538,15 +676,12 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                         const Text(
                           'Entre na atividade para conversar com o grupo.',
                           textAlign: TextAlign.center,
-                          style: TextStyle(
-                            color: AppColors.textSecondary,
-                          ),
+                          style: TextStyle(color: AppColors.textSecondary),
                         ),
                         const SizedBox(height: 20),
                         FilledButton(
-                          onPressed: () => context.go(
-                            '/activity/${widget.activityId}',
-                          ),
+                          onPressed: () =>
+                              context.go('/activity/${widget.activityId}'),
                           child: const Text('Ver atividade'),
                         ),
                       ],
@@ -604,9 +739,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                         PopupMenuButton<String>(
                           onSelected: (value) {
                             if (value == 'activity') {
-                              context.go(
-                                '/activity/${widget.activityId}',
-                              );
+                              context.go('/activity/${widget.activityId}');
                             } else if (value == 'report') {
                               _showReportConversation();
                             }
@@ -628,7 +761,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                   Expanded(
                     child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
                       stream: chatRef
-                          .orderBy('createdAt', descending: false)
+                          .orderBy('createdAt')
                           .limitToLast(100)
                           .snapshots(),
                       builder: (context, messageSnapshot) {
@@ -654,10 +787,16 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                         }
 
                         final documents = messageSnapshot.data?.docs ?? [];
+                        _markSeen(documents, user.uid);
 
-                        final messages = documents.map((doc) {
+                        final visibleDocs = documents.where((doc) {
+                          final hiddenFor = doc.data()['hiddenFor'];
+                          return !(hiddenFor is List &&
+                              hiddenFor.contains(user.uid));
+                        }).toList();
+
+                        final messages = visibleDocs.map((doc) {
                           final data = doc.data();
-
                           return ChatMessage(
                             id: doc.id,
                             senderId: (data['senderId'] ?? '').toString(),
@@ -666,6 +805,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                             type: (data['type'] ?? 'text').toString(),
                             text: (data['text'] ?? '').toString(),
                             mediaUrl: data['mediaUrl']?.toString(),
+                            audioUrl: data['audioUrl']?.toString(),
                             audioBase64: data['audioBase64']?.toString(),
                             audioMimeType: data['audioMimeType']?.toString(),
                             audioDurationMs:
@@ -674,13 +814,19 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                             createdAt:
                                 (data['createdAt'] as Timestamp?)?.toDate() ??
                                     DateTime.now(),
+                            editedAt:
+                                (data['editedAt'] as Timestamp?)?.toDate(),
+                            deletedAt:
+                                (data['deletedAt'] as Timestamp?)?.toDate(),
                             seenBy: data['seenBy'] is List
-                                ? List<String>.from(
-                                    (data['seenBy'] as List)
-                                        .map((item) => item.toString()),
-                                  )
+                                ? List<String>.from(data['seenBy'])
+                                : <String>[],
+                            hiddenFor: data['hiddenFor'] is List
+                                ? List<String>.from(data['hiddenFor'])
                                 : <String>[],
                             mine: data['senderId'] == user.uid,
+                            deletedForEveryone:
+                                data['deletedForEveryone'] == true,
                           );
                         }).toList();
 
@@ -725,12 +871,18 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                           padding: const EdgeInsets.fromLTRB(16, 18, 16, 8),
                           itemCount: messages.length,
                           itemBuilder: (context, index) {
+                            final message = messages[index];
+                            final doc = visibleDocs[index];
                             return MessageBubble(
-                              message: messages[index],
-                              onAudioConsumed: messages[index].viewOnce &&
-                                      !messages[index].mine
-                                  ? () =>
-                                      chatRef.doc(messages[index].id).update({
+                              message: message,
+                              onOptions: () => _showMessageActions(
+                                doc.reference,
+                                message,
+                                user.uid,
+                              ),
+                              onAudioConsumed: message.viewOnce && !message.mine
+                                  ? () => doc.reference.update({
+                                        'audioUrl': null,
                                         'audioBase64': null,
                                         'consumedBy': user.uid,
                                         'consumedAt':

@@ -285,16 +285,14 @@ class _CreateActivityScreenState extends ConsumerState<CreateActivityScreen> {
       });
 
       if (widget.sourceDiscoveryId != null) {
-        await database
-            .collection('discoveries')
-            .doc(widget.sourceDiscoveryId)
-            .collection('activity_links')
-            .doc(activityReference.id)
-            .set({
-          'activityId': activityReference.id,
-          'creatorId': user.uid,
-          'createdAt': FieldValue.serverTimestamp(),
-        });
+        try {
+          await ApiService.instance.registerDiscoveryActivity(
+            discoveryId: widget.sourceDiscoveryId!,
+            activityId: activityReference.id,
+          );
+        } catch (_) {
+          // A atividade já existe. Uma falha de métrica não deve apagá-la.
+        }
       }
 
       if (!mounted) return;

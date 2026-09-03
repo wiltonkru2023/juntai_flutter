@@ -1,2 +1,27 @@
-import 'package:flutter/material.dart'; import '../../app/theme/app_colors.dart';
-class AppChip extends StatelessWidget{const AppChip({super.key,required this.label,this.icon,this.selected=false,this.onTap});final String label;final IconData? icon;final bool selected;final VoidCallback? onTap;@override Widget build(BuildContext context)=>ActionChip(onPressed:onTap,avatar:icon==null?null:Icon(icon,size:18,color:selected?Colors.white:AppColors.primary),label:Text(label),backgroundColor:selected?AppColors.primary:Colors.white,labelStyle:TextStyle(color:selected?Colors.white:null,fontWeight:FontWeight.w600),side:BorderSide(color:selected?AppColors.primary:AppColors.border));}
+import 'package:flutter/material.dart';
+import '../../app/theme/app_colors.dart';
+
+class AppChip extends StatelessWidget {
+  const AppChip(
+      {super.key,
+      required this.label,
+      this.icon,
+      this.selected = false,
+      this.onTap});
+  final String label;
+  final IconData? icon;
+  final bool selected;
+  final VoidCallback? onTap;
+  @override
+  Widget build(BuildContext context) => ActionChip(
+      onPressed: onTap,
+      avatar: icon == null
+          ? null
+          : Icon(icon,
+              size: 18, color: selected ? Colors.white : AppColors.primary),
+      label: Text(label),
+      backgroundColor: selected ? AppColors.primary : Colors.white,
+      labelStyle: TextStyle(
+          color: selected ? Colors.white : null, fontWeight: FontWeight.w600),
+      side: BorderSide(color: selected ? AppColors.primary : AppColors.border));
+}

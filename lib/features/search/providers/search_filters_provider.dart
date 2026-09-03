@@ -30,19 +30,15 @@ class SearchFilters {
   }) {
     return SearchFilters(
       categories: categories ?? this.categories,
-      maxDistanceKm:
-          maxDistanceKm ?? this.maxDistanceKm,
+      maxDistanceKm: maxDistanceKm ?? this.maxDistanceKm,
       date: date ?? this.date,
-      vacanciesOnly:
-          vacanciesOnly ?? this.vacanciesOnly,
+      vacanciesOnly: vacanciesOnly ?? this.vacanciesOnly,
     );
   }
 }
 
-class SearchFiltersController
-    extends StateNotifier<SearchFilters> {
-  SearchFiltersController()
-      : super(const SearchFilters());
+class SearchFiltersController extends StateNotifier<SearchFilters> {
+  SearchFiltersController() : super(const SearchFilters());
 
   void apply(SearchFilters filters) {
     state = filters;
@@ -53,8 +49,7 @@ class SearchFiltersController
   }
 }
 
-final searchFiltersProvider = StateNotifierProvider<
-    SearchFiltersController,
-    SearchFilters>(
+final searchFiltersProvider =
+    StateNotifierProvider<SearchFiltersController, SearchFilters>(
   (ref) => SearchFiltersController(),
 );

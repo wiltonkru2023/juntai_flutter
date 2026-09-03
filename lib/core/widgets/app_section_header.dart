@@ -1,2 +1,17 @@
 import 'package:flutter/material.dart';
-class AppSectionHeader extends StatelessWidget{const AppSectionHeader({super.key,required this.title,this.actionLabel,this.onAction});final String title;final String? actionLabel;final VoidCallback? onAction;@override Widget build(BuildContext context)=>Row(children:[Text(title,style:const TextStyle(fontSize:21,fontWeight:FontWeight.w900)),const Spacer(),if(actionLabel!=null)TextButton(onPressed:onAction,child:Text(actionLabel!))]);}
+
+class AppSectionHeader extends StatelessWidget {
+  const AppSectionHeader(
+      {super.key, required this.title, this.actionLabel, this.onAction});
+  final String title;
+  final String? actionLabel;
+  final VoidCallback? onAction;
+  @override
+  Widget build(BuildContext context) => Row(children: [
+        Text(title,
+            style: const TextStyle(fontSize: 21, fontWeight: FontWeight.w900)),
+        const Spacer(),
+        if (actionLabel != null)
+          TextButton(onPressed: onAction, child: Text(actionLabel!))
+      ]);
+}

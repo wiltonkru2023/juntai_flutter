@@ -13,20 +13,17 @@ class FiltersScreen extends ConsumerStatefulWidget {
   });
 
   @override
-  ConsumerState<FiltersScreen> createState() =>
-      _FiltersScreenState();
+  ConsumerState<FiltersScreen> createState() => _FiltersScreenState();
 }
 
-class _FiltersScreenState
-    extends ConsumerState<FiltersScreen> {
+class _FiltersScreenState extends ConsumerState<FiltersScreen> {
   final Set<ActivityCategory> categories = {};
 
   double distance = 50;
 
   bool vacanciesOnly = false;
 
-  SearchDateFilter date =
-      SearchDateFilter.any;
+  SearchDateFilter date = SearchDateFilter.any;
 
   bool initialized = false;
 
@@ -36,8 +33,7 @@ class _FiltersScreenState
 
     if (initialized) return;
 
-    final current =
-        ref.read(searchFiltersProvider);
+    final current = ref.read(searchFiltersProvider);
 
     categories
       ..clear()
@@ -51,12 +47,9 @@ class _FiltersScreenState
   }
 
   void apply() {
-    ref
-        .read(searchFiltersProvider.notifier)
-        .apply(
+    ref.read(searchFiltersProvider.notifier).apply(
           SearchFilters(
-            categories:
-                Set<ActivityCategory>.from(
+            categories: Set<ActivityCategory>.from(
               categories,
             ),
             maxDistanceKm: distance,
@@ -76,9 +69,7 @@ class _FiltersScreenState
       vacanciesOnly = false;
     });
 
-    ref
-        .read(searchFiltersProvider.notifier)
-        .clear();
+    ref.read(searchFiltersProvider.notifier).clear();
   }
 
   String dateLabel(
@@ -128,19 +119,15 @@ class _FiltersScreenState
               fontWeight: FontWeight.w800,
             ),
           ),
-
           const SizedBox(height: 10),
-
           Wrap(
             spacing: 8,
             runSpacing: 8,
-            children:
-                ActivityCategory.values.map(
+            children: ActivityCategory.values.map(
               (category) {
                 return JuntaiFilterChip(
                   label: category.label,
-                  selected:
-                      categories.contains(
+                  selected: categories.contains(
                     category,
                   ),
                   onSelected: (selected) {
@@ -160,9 +147,7 @@ class _FiltersScreenState
               },
             ).toList(),
           ),
-
           const SizedBox(height: 28),
-
           Text(
             'Distância: até ${distance.round()} km',
             style: const TextStyle(
@@ -170,9 +155,7 @@ class _FiltersScreenState
               fontWeight: FontWeight.w800,
             ),
           ),
-
           const SizedBox(height: 4),
-
           const Text(
             'A distância é aplicada quando a localização do celular está disponível.',
             style: TextStyle(
@@ -180,7 +163,6 @@ class _FiltersScreenState
               color: Colors.grey,
             ),
           ),
-
           Slider(
             value: distance,
             min: 1,
@@ -193,9 +175,7 @@ class _FiltersScreenState
               });
             },
           ),
-
           const SizedBox(height: 20),
-
           const Text(
             'Quando',
             style: TextStyle(
@@ -203,14 +183,11 @@ class _FiltersScreenState
               fontWeight: FontWeight.w800,
             ),
           ),
-
           const SizedBox(height: 10),
-
           Wrap(
             spacing: 8,
             runSpacing: 8,
-            children:
-                SearchDateFilter.values.map(
+            children: SearchDateFilter.values.map(
               (value) {
                 return ChoiceChip(
                   label: Text(
@@ -226,9 +203,7 @@ class _FiltersScreenState
               },
             ).toList(),
           ),
-
           const SizedBox(height: 18),
-
           SwitchListTile(
             contentPadding: EdgeInsets.zero,
             title: const Text(
@@ -244,9 +219,7 @@ class _FiltersScreenState
               });
             },
           ),
-
           const SizedBox(height: 8),
-
           const ListTile(
             contentPadding: EdgeInsets.zero,
             leading: Icon(
@@ -260,9 +233,7 @@ class _FiltersScreenState
               'Atividades privadas ficam disponíveis apenas para participantes e organizadores.',
             ),
           ),
-
           const SizedBox(height: 24),
-
           AppButton(
             label: 'Aplicar filtros',
             icon: Icons.check_rounded,

@@ -1,2 +1,28 @@
-import 'package:flutter/material.dart'; import '../../../../app/theme/app_colors.dart';
-class ParticipantCounter extends StatelessWidget{const ParticipantCounter({super.key,required this.value,required this.onChanged});final int value;final ValueChanged<int> onChanged;@override Widget build(BuildContext context)=>Container(decoration:BoxDecoration(border:Border.all(color:Colors.grey.shade300),borderRadius:BorderRadius.circular(30)),child:Row(mainAxisSize:MainAxisSize.min,children:[IconButton(onPressed:value>2?()=>onChanged(value-1):null,icon:const Icon(Icons.remove_rounded),visualDensity:VisualDensity.compact),Padding(padding:const EdgeInsets.symmetric(horizontal:8),child:Text('$value',style:const TextStyle(fontWeight:FontWeight.w700))),IconButton(onPressed:()=>onChanged(value+1),icon:const Icon(Icons.add_rounded,color:AppColors.primary),visualDensity:VisualDensity.compact)]));}
+import 'package:flutter/material.dart';
+import '../../../../app/theme/app_colors.dart';
+
+class ParticipantCounter extends StatelessWidget {
+  const ParticipantCounter(
+      {super.key, required this.value, required this.onChanged});
+  final int value;
+  final ValueChanged<int> onChanged;
+  @override
+  Widget build(BuildContext context) => Container(
+      decoration: BoxDecoration(
+          border: Border.all(color: Colors.grey.shade300),
+          borderRadius: BorderRadius.circular(30)),
+      child: Row(mainAxisSize: MainAxisSize.min, children: [
+        IconButton(
+            onPressed: value > 2 ? () => onChanged(value - 1) : null,
+            icon: const Icon(Icons.remove_rounded),
+            visualDensity: VisualDensity.compact),
+        Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+            child: Text('$value',
+                style: const TextStyle(fontWeight: FontWeight.w700))),
+        IconButton(
+            onPressed: () => onChanged(value + 1),
+            icon: const Icon(Icons.add_rounded, color: AppColors.primary),
+            visualDensity: VisualDensity.compact)
+      ]));
+}

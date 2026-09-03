@@ -22,17 +22,15 @@ class HomeHeader extends StatelessWidget {
       );
     }
 
-    final userRef = FirebaseFirestore.instance
-        .collection('users')
-        .doc(user.uid);
+    final userRef =
+        FirebaseFirestore.instance.collection('users').doc(user.uid);
 
     return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
       stream: userRef.snapshots(),
       builder: (context, profileSnapshot) {
         final data = profileSnapshot.data?.data();
-        final name = (data?['name'] ?? user.displayName ?? 'Você')
-            .toString()
-            .trim();
+        final name =
+            (data?['name'] ?? user.displayName ?? 'Você').toString().trim();
         final photoUrl = data?['photoUrl']?.toString();
 
         return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(

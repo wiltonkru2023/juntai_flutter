@@ -345,8 +345,12 @@ class NotificationService {
 
   String _routeFor(RemoteMessage message) {
     final activityId = message.data['activityId']?.toString();
-
+    final actorId = message.data['actorId']?.toString();
     final type = message.data['type']?.toString();
+
+    if (type == 'private_message' && actorId != null && actorId.isNotEmpty) {
+      return '/message/$actorId';
+    }
 
     if (activityId == null || activityId.isEmpty) {
       return '/notifications';

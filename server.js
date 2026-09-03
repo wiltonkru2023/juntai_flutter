@@ -34,6 +34,7 @@ const Timestamp = admin.firestore.Timestamp;
 
 const SOCIAL_NOTIFICATION_TYPES = new Set([
   'new_message',
+  'private_message',
   'new_participant',
   'join_request',
 ]);
@@ -128,7 +129,7 @@ async function isBlockedBy(targetUid, actorId) {
 }
 
 function shouldPush(type, preferences) {
-  if (type === 'new_message') {
+  if (type === 'new_message' || type === 'private_message') {
     return preferences.chatNotifications !== false;
   }
   return preferences.activityNotifications !== false;
@@ -439,17 +440,17 @@ app.post('/create-business', authenticate, async (req, res, next) => {
       city: requiredString(req.body?.city, 'city', 80),
       address: requiredString(req.body?.address, 'address', 250),
       latitude, longitude,
-      websiteUrl: optionalString(req.body?.websiteUrl, 500),
+      websiteUrl: optionalHttpUrl(req.body?.websiteUrl, 'websiteUrl', 500),
       description: optionalString(req.body?.description, 800),
       verified: false, reviewStatus: 'pending', plan: 'free',
-      monthlyPostLimit: 1, activePostLimit: 1, postsUsedThisMonth: 0,
+      monthlyPostLimit: 1, activePostLimit: 1, postsUsedThisMonth: 0, usageMonth: usageMonthKey(),
       createdAt: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp(),
     });
     res.json({ ok: true, businessId: uid });
   } catch (error) { next(error); }
 });
 
-app.post('/create-business-post', authenticate, async (req, res, next) => {
+app.post('/create-business-post-legacy-disabled', authenticate, async (req, res, next) => {
   try {
     const uid = req.user.uid;
     const businessRef = db.collection('business_profiles').doc(uid);
@@ -1229,6 +1230,544 @@ app.post('/cancel-activity', authenticate, async (req, res, next) => {
     next(error);
   }
 });
+
+// ---- Juntaí v2: áudio por URL, mensagens privadas e comércio completo ----
+function usageMonthKey(date = new Date()) {
+  return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, '0')}`;
+}
+
+function optionalHttpUrl(value, field, maxLength = 500) {
+  const text = optionalString(value, maxLength);
+  if (text && !/^https?:\/\//i.test(text)) {
+    throw new ApiError(400, 'invalid-url', `${field} deve começar com http:// ou https://.`);
+  }
+  return text;
+}
+
+app.post('/upload-audio', authenticate, async (req, res, next) => {
+  try {
+    if (!imageKitPrivateKey) {
+      throw new ApiError(
+        503,
+        'audio-service-not-configured',
+        'O serviço de mídia ainda não está configurado no servidor.',
+      );
+    }
+
+    const uid = req.user.uid;
+    const purpose = requiredString(req.body?.purpose, 'purpose', 30);
+    const encoded = requiredString(req.body?.base64, 'base64', 6_000_000);
+    const requestedName = optionalString(req.body?.fileName, 160);
+    const mimeType = optionalString(req.body?.mimeType, 80).toLowerCase();
+
+    if (!['chat', 'private_chat'].includes(purpose)) {
+      throw new ApiError(400, 'invalid-argument', 'Destino de áudio inválido.');
+    }
+
+    const allowedMimeTypes = new Set([
+      'audio/mp4',
+      'audio/m4a',
+      'audio/x-m4a',
+      'audio/aac',
+    ]);
+
+    if (!allowedMimeTypes.has(mimeType)) {
+      throw new ApiError(400, 'invalid-argument', 'Formato de áudio não suportado.');
+    }
+
+    let bytes;
+    try {
+      bytes = Buffer.from(encoded, 'base64');
+    } catch (_) {
+      throw new ApiError(400, 'invalid-argument', 'Áudio inválido.');
+    }
+
+    if (!bytes.length) {
+      throw new ApiError(400, 'invalid-argument', 'Áudio vazio.');
+    }
+    if (bytes.length > 4 * 1024 * 1024) {
+      throw new ApiError(413, 'payload-too-large', 'O áudio ficou grande demais. Grave uma mensagem menor.');
+    }
+
+    const extension = mimeType === 'audio/aac' ? 'aac' : 'm4a';
+    const safeRequestedName = requestedName
+      .replace(/[^a-zA-Z0-9._-]/g, '_')
+      .replace(/\.+/g, '.')
+      .slice(0, 120);
+    const generatedName = `${purpose}_${Date.now()}_${Math.random().toString(36).slice(2, 10)}.${extension}`;
+    const fileName = safeRequestedName || generatedName;
+    const folder = `/juntai/audio/${purpose}/${uid}`;
+
+    const form = new FormData();
+    form.append('file', new Blob([bytes], { type: mimeType }), fileName);
+    form.append('fileName', fileName);
+    form.append('folder', folder);
+    form.append('useUniqueFileName', 'true');
+
+    const auth = Buffer.from(`${imageKitPrivateKey}:`).toString('base64');
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 45000);
+
+    let uploadResponse;
+    try {
+      uploadResponse = await fetch('https://upload.imagekit.io/api/v1/files/upload', {
+        method: 'POST',
+        headers: {
+          Authorization: `Basic ${auth}`,
+          Accept: 'application/json',
+        },
+        body: form,
+        signal: controller.signal,
+      });
+    } finally {
+      clearTimeout(timeout);
+    }
+
+    const payload = await uploadResponse.json().catch(() => ({}));
+    if (!uploadResponse.ok) {
+      console.error('ImageKit audio upload error:', uploadResponse.status, payload);
+      throw new ApiError(
+        502,
+        'audio-upload-failed',
+        String(payload?.message || 'Não foi possível enviar o áudio.'),
+      );
+    }
+
+    const url = String(payload?.url || '').trim();
+    const fileId = String(payload?.fileId || '').trim();
+    if (!url) {
+      throw new ApiError(502, 'audio-upload-failed', 'O servidor não retornou a URL do áudio.');
+    }
+
+    res.json({ ok: true, url, fileId });
+  } catch (error) {
+    if (error?.name === 'AbortError') {
+      return next(new ApiError(504, 'audio-upload-timeout', 'O envio do áudio demorou demais. Tente novamente.'));
+    }
+    next(error);
+  }
+});
+
+app.post('/update-business', authenticate, async (req, res, next) => {
+  try {
+    const uid = req.user.uid;
+    const ref = db.collection('business_profiles').doc(uid);
+    const snapshot = await ref.get();
+    if (!snapshot.exists) {
+      throw new ApiError(404, 'business-not-found', 'Perfil comercial não encontrado.');
+    }
+
+    const current = snapshot.data() || {};
+    const latitude = Number(req.body?.latitude);
+    const longitude = Number(req.body?.longitude);
+    if (!Number.isFinite(latitude) || latitude < -90 || latitude > 90 ||
+        !Number.isFinite(longitude) || longitude < -180 || longitude > 180) {
+      throw new ApiError(400, 'invalid-location', 'Localização inválida.');
+    }
+
+    const nextData = {
+      name: requiredString(req.body?.name, 'name', 80),
+      category: requiredString(req.body?.category, 'category', 50),
+      city: requiredString(req.body?.city, 'city', 80),
+      address: requiredString(req.body?.address, 'address', 250),
+      latitude,
+      longitude,
+      websiteUrl: optionalHttpUrl(req.body?.websiteUrl, 'websiteUrl', 500),
+      description: optionalString(req.body?.description, 800),
+    };
+
+    const criticalChanged =
+      nextData.name !== String(current.name || '') ||
+      nextData.category !== String(current.category || '') ||
+      nextData.city !== String(current.city || '') ||
+      nextData.address !== String(current.address || '') ||
+      Number(current.latitude) !== latitude ||
+      Number(current.longitude) !== longitude;
+
+    await ref.update({
+      ...nextData,
+      ...(criticalChanged ? { verified: false, reviewStatus: 'pending' } : {}),
+      updatedAt: FieldValue.serverTimestamp(),
+    });
+
+    const posts = await db.collection('discoveries').where('businessId', '==', uid).get();
+    await Promise.all(posts.docs.map((post) => post.ref.update({
+      businessName: nextData.name,
+      businessCategory: nextData.category,
+      businessVerified: criticalChanged ? false : current.verified === true,
+      address: nextData.address,
+      latitude,
+      longitude,
+      websiteUrl: nextData.websiteUrl,
+      updatedAt: FieldValue.serverTimestamp(),
+    })));
+
+    res.json({ ok: true, reviewStatus: criticalChanged ? 'pending' : current.reviewStatus });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.post(['/create-business-post', '/create-business-post-v2'], authenticate, async (req, res, next) => {
+  try {
+    const uid = req.user.uid;
+    const businessRef = db.collection('business_profiles').doc(uid);
+    const postRef = db.collection('discoveries').doc();
+    const activeQuery = db
+      .collection('discoveries')
+      .where('businessId', '==', uid)
+      .where('status', '==', 'published');
+
+    const type = optionalString(req.body?.type, 30) || 'experience';
+    if (!['experience', 'event', 'open_slots', 'promotion', 'schedule'].includes(type)) {
+      throw new ApiError(400, 'invalid-type', 'Tipo de publicação inválido.');
+    }
+
+    const startsAt = req.body?.eventStartsAt
+      ? parseDate(req.body.eventStartsAt, 'eventStartsAt')
+      : null;
+    if (startsAt && startsAt.getTime() <= Date.now()) {
+      throw new ApiError(400, 'invalid-event-date', 'Escolha uma data futura para o evento.');
+    }
+    const month = usageMonthKey();
+
+    await db.runTransaction(async (transaction) => {
+      const [businessSnapshot, activeSnapshot] = await Promise.all([
+        transaction.get(businessRef),
+        transaction.get(activeQuery),
+      ]);
+
+      if (!businessSnapshot.exists) {
+        throw new ApiError(412, 'business-required', 'Crie seu perfil comercial primeiro.');
+      }
+
+      const business = businessSnapshot.data() || {};
+      if (business.reviewStatus !== 'approved') {
+        throw new ApiError(
+          403,
+          'business-not-approved',
+          'Seu perfil comercial precisa ser aprovado antes de publicar.',
+        );
+      }
+
+      const activeLimit = Math.max(Number(business.activePostLimit || 1), 1);
+      if (activeSnapshot.size >= activeLimit) {
+        throw new ApiError(409, 'active-plan-limit', 'Seu plano atingiu o limite de publicações ativas.');
+      }
+
+      const monthlyLimit = Math.max(Number(business.monthlyPostLimit || 1), 1);
+      const used = String(business.usageMonth || '') === month
+        ? Math.max(Number(business.postsUsedThisMonth || 0), 0)
+        : 0;
+      if (used >= monthlyLimit) {
+        throw new ApiError(409, 'monthly-plan-limit', 'Seu plano atingiu o limite de publicações deste mês.');
+      }
+
+      const coverUrl = optionalHttpUrl(req.body?.coverUrl, 'coverUrl', 500);
+      if (!coverUrl) {
+        throw new ApiError(400, 'invalid-argument', 'coverUrl é obrigatório.');
+      }
+
+      transaction.set(postRef, {
+        businessId: uid,
+        businessName: String(business.name || ''),
+        businessCategory: String(business.category || ''),
+        businessVerified: business.verified === true,
+        type,
+        title: requiredString(req.body?.title, 'title', 120),
+        description: requiredString(req.body?.description, 'description', 1200),
+        coverUrl,
+        address: String(business.address || ''),
+        latitude: Number(business.latitude),
+        longitude: Number(business.longitude),
+        websiteUrl: optionalHttpUrl(business.websiteUrl, 'websiteUrl', 500),
+        groupBenefit: optionalString(req.body?.groupBenefit, 300),
+        ctaLabel: requiredString(req.body?.ctaLabel || 'Criar atividade aqui', 'ctaLabel', 40),
+        officialEvent: req.body?.officialEvent === true,
+        eventStartsAt: startsAt ? Timestamp.fromDate(startsAt) : null,
+        sponsored: false,
+        status: 'published',
+        views: 0,
+        opens: 0,
+        activitiesCreated: 0,
+        participantsGenerated: 0,
+        createdAt: FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp(),
+      });
+
+      transaction.update(businessRef, {
+        postsUsedThisMonth: used + 1,
+        usageMonth: month,
+        updatedAt: FieldValue.serverTimestamp(),
+      });
+    });
+
+    res.json({ ok: true, postId: postRef.id });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.post('/update-business-post', authenticate, async (req, res, next) => {
+  try {
+    const uid = req.user.uid;
+    const postId = requiredString(req.body?.postId, 'postId', 200);
+    const postRef = db.collection('discoveries').doc(postId);
+    const businessRef = db.collection('business_profiles').doc(uid);
+    const [postSnapshot, businessSnapshot] = await Promise.all([
+      postRef.get(),
+      businessRef.get(),
+    ]);
+
+    if (!postSnapshot.exists) {
+      throw new ApiError(404, 'not-found', 'Publicação não encontrada.');
+    }
+    const post = postSnapshot.data() || {};
+    if (String(post.businessId || '') !== uid) {
+      throw new ApiError(403, 'permission-denied', 'Você não pode editar esta publicação.');
+    }
+    if (post.status === 'archived') {
+      throw new ApiError(412, 'archived', 'Publicação arquivada não pode ser editada.');
+    }
+    if (!businessSnapshot.exists) {
+      throw new ApiError(412, 'business-required', 'Perfil comercial não encontrado.');
+    }
+
+    const business = businessSnapshot.data() || {};
+    const type = optionalString(req.body?.type, 30) || String(post.type || 'experience');
+    if (!['experience', 'event', 'open_slots', 'promotion', 'schedule'].includes(type)) {
+      throw new ApiError(400, 'invalid-type', 'Tipo de publicação inválido.');
+    }
+    const startsAt = req.body?.eventStartsAt
+      ? parseDate(req.body.eventStartsAt, 'eventStartsAt')
+      : null;
+    if (startsAt && startsAt.getTime() <= Date.now()) {
+      throw new ApiError(400, 'invalid-event-date', 'Escolha uma data futura para o evento.');
+    }
+    const coverUrl = optionalHttpUrl(req.body?.coverUrl, 'coverUrl', 500);
+    if (!coverUrl) {
+      throw new ApiError(400, 'invalid-argument', 'coverUrl é obrigatório.');
+    }
+
+    await postRef.update({
+      businessName: String(business.name || post.businessName || ''),
+      businessCategory: String(business.category || post.businessCategory || ''),
+      businessVerified: business.verified === true,
+      type,
+      title: requiredString(req.body?.title, 'title', 120),
+      description: requiredString(req.body?.description, 'description', 1200),
+      coverUrl,
+      address: String(business.address || post.address || ''),
+      latitude: Number(business.latitude ?? post.latitude),
+      longitude: Number(business.longitude ?? post.longitude),
+      websiteUrl: optionalHttpUrl(business.websiteUrl, 'websiteUrl', 500),
+      groupBenefit: optionalString(req.body?.groupBenefit, 300),
+      ctaLabel: requiredString(req.body?.ctaLabel || 'Criar atividade aqui', 'ctaLabel', 40),
+      officialEvent: req.body?.officialEvent === true,
+      eventStartsAt: startsAt ? Timestamp.fromDate(startsAt) : null,
+      updatedAt: FieldValue.serverTimestamp(),
+    });
+
+    res.json({ ok: true, postId });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.post('/archive-business-post', authenticate, async (req, res, next) => {
+  try {
+    const uid = req.user.uid;
+    const postId = requiredString(req.body?.postId, 'postId', 200);
+    const postRef = db.collection('discoveries').doc(postId);
+
+    await db.runTransaction(async (transaction) => {
+      const snapshot = await transaction.get(postRef);
+      if (!snapshot.exists) {
+        throw new ApiError(404, 'not-found', 'Publicação não encontrada.');
+      }
+      const data = snapshot.data() || {};
+      if (String(data.businessId || '') !== uid) {
+        throw new ApiError(403, 'permission-denied', 'Você não pode arquivar esta publicação.');
+      }
+      if (data.status === 'archived') return;
+      transaction.update(postRef, {
+        status: 'archived',
+        updatedAt: FieldValue.serverTimestamp(),
+      });
+    });
+
+    res.json({ ok: true });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.post('/register-discovery-activity', authenticate, async (req, res, next) => {
+  try {
+    const uid = req.user.uid;
+    const discoveryId = requiredString(req.body?.discoveryId, 'discoveryId', 200);
+    const activityId = requiredString(req.body?.activityId, 'activityId', 200);
+    const discoveryRef = db.collection('discoveries').doc(discoveryId);
+    const activityRef = db.collection('activities').doc(activityId);
+    const markerRef = discoveryRef.collection('activity_links').doc(activityId);
+    let counted = false;
+
+    await db.runTransaction(async (transaction) => {
+      const [discovery, activity, marker] = await Promise.all([
+        transaction.get(discoveryRef),
+        transaction.get(activityRef),
+        transaction.get(markerRef),
+      ]);
+      if (!discovery.exists) {
+        throw new ApiError(404, 'not-found', 'Descoberta não encontrada.');
+      }
+      if (!activity.exists) {
+        throw new ApiError(404, 'not-found', 'Atividade não encontrada.');
+      }
+      const activityData = activity.data() || {};
+      if (String(activityData.creatorId || '') !== uid) {
+        throw new ApiError(403, 'permission-denied', 'Somente o criador pode vincular a atividade.');
+      }
+      if (String(activityData.sourceDiscoveryId || '') !== discoveryId) {
+        throw new ApiError(412, 'invalid-source', 'A atividade não pertence a esta descoberta.');
+      }
+      if (marker.exists) return;
+
+      transaction.set(markerRef, {
+        activityId,
+        creatorId: uid,
+        createdAt: FieldValue.serverTimestamp(),
+      });
+      transaction.update(discoveryRef, {
+        activitiesCreated: FieldValue.increment(1),
+        updatedAt: FieldValue.serverTimestamp(),
+      });
+      counted = true;
+    });
+
+    res.json({ ok: true, counted });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.post('/record-discovery-participant', authenticate, async (req, res, next) => {
+  try {
+    const actorUid = req.user.uid;
+    const activityId = requiredString(req.body?.activityId, 'activityId', 200);
+    const requestedUserId = optionalString(req.body?.userId, 200);
+    const participantUid = requestedUserId || actorUid;
+    const activityRef = db.collection('activities').doc(activityId);
+    const activitySnapshot = await activityRef.get();
+
+    if (!activitySnapshot.exists) {
+      throw new ApiError(404, 'not-found', 'Atividade não encontrada.');
+    }
+
+    const activity = activitySnapshot.data() || {};
+    if (participantUid !== actorUid && String(activity.creatorId || '') !== actorUid) {
+      throw new ApiError(403, 'permission-denied', 'Somente o organizador pode registrar outro participante.');
+    }
+
+    const participant = await activityRef.collection('participants').doc(participantUid).get();
+    if (!participant.exists) {
+      throw new ApiError(412, 'not-participant', 'O usuário ainda não participa da atividade.');
+    }
+
+    const discoveryId = String(activity.sourceDiscoveryId || '').trim();
+    if (!discoveryId) {
+      return res.json({ ok: true, counted: false, reason: 'no-discovery' });
+    }
+
+    const discoveryRef = db.collection('discoveries').doc(discoveryId);
+    const markerRef = discoveryRef.collection('participant_users').doc(participantUid);
+    let counted = false;
+
+    await db.runTransaction(async (transaction) => {
+      const [discovery, marker] = await Promise.all([
+        transaction.get(discoveryRef),
+        transaction.get(markerRef),
+      ]);
+      if (!discovery.exists) return;
+      if (marker.exists) return;
+
+      transaction.set(markerRef, {
+        userId: participantUid,
+        firstActivityId: activityId,
+        createdAt: FieldValue.serverTimestamp(),
+      });
+      transaction.update(discoveryRef, {
+        participantsGenerated: FieldValue.increment(1),
+        updatedAt: FieldValue.serverTimestamp(),
+      });
+      counted = true;
+    });
+
+    res.json({ ok: true, counted });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.post('/notify-private-message', authenticate, async (req, res, next) => {
+  try {
+    const uid = req.user.uid;
+    const conversationId = requiredString(req.body?.conversationId, 'conversationId', 300);
+    const messageId = requiredString(req.body?.messageId, 'messageId', 200);
+    const conversationRef = db.collection('private_conversations').doc(conversationId);
+    const messageRef = conversationRef.collection('messages').doc(messageId);
+
+    const [conversationSnapshot, messageSnapshot] = await Promise.all([
+      conversationRef.get(),
+      messageRef.get(),
+    ]);
+
+    if (!conversationSnapshot.exists || !messageSnapshot.exists) {
+      throw new ApiError(404, 'not-found', 'Conversa ou mensagem não encontrada.');
+    }
+
+    const conversation = conversationSnapshot.data() || {};
+    const message = messageSnapshot.data() || {};
+    const participants = Array.isArray(conversation.participants)
+      ? conversation.participants.map(String)
+      : [];
+
+    if (!participants.includes(uid) || String(message.senderId || '') !== uid) {
+      throw new ApiError(403, 'permission-denied', 'Você não pode notificar esta mensagem.');
+    }
+
+    const targetUid = participants.find((id) => id !== uid);
+    if (!targetUid) {
+      throw new ApiError(412, 'invalid-conversation', 'Conversa privada inválida.');
+    }
+    if (await blockedEither(uid, targetUid)) {
+      throw new ApiError(403, 'blocked', 'Não é possível enviar mensagens entre usuários bloqueados.');
+    }
+
+    const profile = await userData(uid);
+    const senderName = String(profile.name || 'Nova mensagem');
+    const preview = message.type === 'image'
+      ? '📷 Foto'
+      : message.type === 'audio'
+        ? '🎤 Áudio'
+        : message.type === 'activity'
+          ? `📅 ${String(message.activityTitle || message.text || 'Atividade').slice(0, 100)}`
+          : String(message.text || '').slice(0, 140);
+
+    await notify(targetUid, {
+      type: 'private_message',
+      title: senderName,
+      body: preview || 'Nova mensagem',
+      actorId: uid,
+    });
+
+    res.json({ ok: true });
+  } catch (error) {
+    next(error);
+  }
+});
+// ---- fim Juntaí v2 ----
+
 
 app.use((error, _req, res, _next) => {
   console.error(error);

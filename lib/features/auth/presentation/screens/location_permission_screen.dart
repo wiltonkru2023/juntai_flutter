@@ -7,8 +7,7 @@ import '../../../../core/widgets/app_outline_button.dart';
 import '../../../../core/widgets/juntai_logo.dart';
 import '../../../map/data/location_service.dart';
 
-class LocationPermissionScreen
-    extends StatefulWidget {
+class LocationPermissionScreen extends StatefulWidget {
   const LocationPermissionScreen({
     super.key,
   });
@@ -18,8 +17,7 @@ class LocationPermissionScreen
       _LocationPermissionScreenState();
 }
 
-class _LocationPermissionScreenState
-    extends State<LocationPermissionScreen> {
+class _LocationPermissionScreenState extends State<LocationPermissionScreen> {
   bool loading = false;
 
   Future<void> allowLocation() async {
@@ -28,8 +26,7 @@ class _LocationPermissionScreenState
     setState(() => loading = true);
 
     try {
-      final position =
-          await LocationService.getCurrentPosition();
+      final position = await LocationService.getCurrentPosition();
 
       if (!mounted) return;
 
@@ -87,9 +84,7 @@ class _LocationPermissionScreenState
                 alignment: Alignment.topCenter,
                 child: JuntaiLogo(size: 42),
               ),
-
               const Spacer(),
-
               Container(
                 width: 160,
                 height: 160,
@@ -103,9 +98,7 @@ class _LocationPermissionScreenState
                   color: AppColors.primary,
                 ),
               ),
-
               const SizedBox(height: 28),
-
               const Text(
                 'Atividades perto de você',
                 textAlign: TextAlign.center,
@@ -114,9 +107,7 @@ class _LocationPermissionScreenState
                   fontWeight: FontWeight.w800,
                 ),
               ),
-
               const SizedBox(height: 10),
-
               const Text(
                 'Use sua localização para calcular distâncias, '
                 'centralizar o mapa e mostrar atividades próximas. '
@@ -128,28 +119,17 @@ class _LocationPermissionScreenState
                   color: AppColors.textSecondary,
                 ),
               ),
-
               const Spacer(),
-
               AppButton(
-                label: loading
-                    ? 'Localizando...'
-                    : 'Permitir localização',
-                onPressed:
-                    loading ? null : allowLocation,
+                label: loading ? 'Localizando...' : 'Permitir localização',
+                onPressed: loading ? null : allowLocation,
               ),
-
               const SizedBox(height: 10),
-
               AppOutlineButton(
                 label: 'Agora não',
-                onPressed: loading
-                    ? null
-                    : () => context.go('/home'),
+                onPressed: loading ? null : () => context.go('/home'),
               ),
-
               const SizedBox(height: 8),
-
               const Text(
                 'Você também poderá escolher sua cidade manualmente.',
                 textAlign: TextAlign.center,

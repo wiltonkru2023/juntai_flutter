@@ -54,8 +54,7 @@ class FirebaseActivityRepository implements ActivityRepository {
       latitude: (data['latitude'] ?? 0).toDouble(),
       longitude: (data['longitude'] ?? 0).toDouble(),
       geohash: data['geohash'] ?? '',
-      startsAt:
-          (data['startsAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+      startsAt: (data['startsAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
       maxParticipants: data['maxParticipants'] ?? 2,
       participantCount: data['participantCount'] ?? 0,
       isPrivate: data['isPrivate'] ?? false,
@@ -65,17 +64,14 @@ class FirebaseActivityRepository implements ActivityRepository {
       participantNames: data['participantNames'] is List
           ? List<String>.from(data['participantNames'])
           : const <String>[],
-      createdAt:
-          (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
-      updatedAt:
-          (data['updatedAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+      createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+      updatedAt: (data['updatedAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
     );
   }
 
   @override
   Future<String> createActivity(Activity activity) async {
-    final reference =
-        await db.collection('activities').add(_toMap(activity));
+    final reference = await db.collection('activities').add(_toMap(activity));
     return reference.id;
   }
 

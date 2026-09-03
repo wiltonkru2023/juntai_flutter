@@ -197,7 +197,9 @@ class _HomeScreenState extends State<HomeScreen> {
                     },
                   ),
                 ),
-                const SliverToBoxAdapter(child: _DiscoveriesPreview()),
+                SliverToBoxAdapter(
+                  child: _DiscoveriesPreview(position: currentPosition),
+                ),
                 SliverToBoxAdapter(
                   child: Padding(
                     padding: const EdgeInsets.fromLTRB(
@@ -361,10 +363,17 @@ class _HomeScreenState extends State<HomeScreen> {
 }
 
 class _DiscoveriesPreview extends StatelessWidget {
-  const _DiscoveriesPreview();
+  const _DiscoveriesPreview({this.position});
+
+  final Position? position;
+
   @override
   Widget build(BuildContext context) => StreamBuilder<List<Discovery>>(
-        stream: DiscoveryService().watchPublished(limit: 6),
+        stream: DiscoveryService().watchPublished(
+          limit: 6,
+          latitude: position?.latitude,
+          longitude: position?.longitude,
+        ),
         builder: (context, snapshot) {
           final items = snapshot.data ?? const <Discovery>[];
           if (items.isEmpty) return const SizedBox.shrink();

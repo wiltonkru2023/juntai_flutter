@@ -91,14 +91,12 @@ class ActivityCard extends StatelessWidget {
                   ),
                   ActivityInfoRow(
                     icon: Icons.calendar_month_outlined,
-                    text:
-                        '${DateFormat('dd/MM').format(activity.startsAt)} • '
+                    text: '${DateFormat('dd/MM').format(activity.startsAt)} • '
                         '${DateFormat('HH:mm').format(activity.startsAt)}',
                   ),
                   ActivityInfoRow(
                     icon: Icons.groups_outlined,
-                    text:
-                        '${activity.participantCount} / '
+                    text: '${activity.participantCount} / '
                         '${activity.maxParticipants} participantes',
                   ),
                   const Spacer(),
@@ -110,8 +108,7 @@ class ActivityCard extends StatelessWidget {
                         ),
                       ),
                       FilledButton(
-                        onPressed:
-                            activity.isFull ? null : onJoin,
+                        onPressed: activity.isFull ? null : onJoin,
                         style: FilledButton.styleFrom(
                           backgroundColor: AppColors.primary,
                           padding: const EdgeInsets.symmetric(

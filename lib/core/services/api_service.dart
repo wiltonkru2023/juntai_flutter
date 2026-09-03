@@ -50,10 +50,7 @@ class ApiService {
       );
     }
 
-    final uri = Uri.parse(
-      '$baseUrl$path',
-    );
-
+    final uri = Uri.parse('$baseUrl$path');
     http.Response response;
 
     try {
@@ -65,15 +62,9 @@ class ApiService {
               'Accept': 'application/json',
               'Authorization': 'Bearer $token',
             },
-            body: jsonEncode(
-              body,
-            ),
+            body: jsonEncode(body),
           )
-          .timeout(
-            const Duration(
-              seconds: 60,
-            ),
-          );
+          .timeout(const Duration(seconds: 60));
     } on TimeoutException {
       throw const ApiException(
         message: 'O servidor demorou para responder. Tente novamente.',
@@ -90,16 +81,11 @@ class ApiService {
 
     if (response.body.isNotEmpty) {
       try {
-        final decoded = jsonDecode(
-          response.body,
-        );
-
+        final decoded = jsonDecode(response.body);
         if (decoded is Map<String, dynamic>) {
           data = decoded;
         } else if (decoded is Map) {
-          data = Map<String, dynamic>.from(
-            decoded,
-          );
+          data = Map<String, dynamic>.from(decoded);
         }
       } catch (_) {
         // Resposta sem JSON válido.
@@ -118,57 +104,73 @@ class ApiService {
     return data;
   }
 
-  Future<Map<String, dynamic>> joinActivity(
-    String activityId,
-  ) {
-    return post(
-      '/join-activity',
-      body: {
-        'activityId': activityId,
-      },
-    );
-  }
+  Future<Map<String, dynamic>> reserveUsername(String username) =>
+      post('/reserve-username', body: {'username': username});
 
   Future<Map<String, dynamic>> createBusiness(Map<String, dynamic> data) =>
       post('/create-business', body: data);
 
-  Future<Map<String, dynamic>> reserveUsername(String username) =>
-      post('/reserve-username', body: {'username': username});
+  Future<Map<String, dynamic>> updateBusiness(Map<String, dynamic> data) =>
+      post('/update-business', body: data);
 
   Future<Map<String, dynamic>> createBusinessPost(Map<String, dynamic> data) =>
-      post('/create-business-post', body: data);
+      post('/create-business-post-v2', body: data);
 
-  Future<Map<String, dynamic>> trackBusinessPost(String postId, String event) =>
+  Future<Map<String, dynamic>> updateBusinessPost(
+    String postId,
+    Map<String, dynamic> data,
+  ) =>
+      post('/update-business-post', body: {'postId': postId, ...data});
+
+  Future<Map<String, dynamic>> archiveBusinessPost(String postId) =>
+      post('/archive-business-post', body: {'postId': postId});
+
+  Future<Map<String, dynamic>> trackBusinessPost(
+    String postId,
+    String event,
+  ) =>
       post('/business-post-view', body: {'postId': postId, 'event': event});
 
-  Future<Map<String, dynamic>> leaveActivity(
-    String activityId,
-  ) {
-    return post(
-      '/leave-activity',
-      body: {
-        'activityId': activityId,
-      },
-    );
+  Future<Map<String, dynamic>> registerDiscoveryActivity({
+    required String discoveryId,
+    required String activityId,
+  }) =>
+      post(
+        '/register-discovery-activity',
+        body: {
+          'discoveryId': discoveryId,
+          'activityId': activityId,
+        },
+      );
+
+  Future<Map<String, dynamic>> joinActivity(String activityId) async {
+    final result =
+        await post('/join-activity', body: {'activityId': activityId});
+    if (result['joined'] == true) {
+      try {
+        await post(
+          '/record-discovery-participant',
+          body: {'activityId': activityId},
+        );
+      } catch (_) {
+        // A participação já foi concluída; métrica não deve desfazer a entrada.
+      }
+    }
+    return result;
   }
 
-  Future<Map<String, dynamic>> requestJoinActivity(
-    String activityId,
-  ) {
-    return post(
-      '/request-join-activity',
-      body: {
-        'activityId': activityId,
-      },
-    );
-  }
+  Future<Map<String, dynamic>> leaveActivity(String activityId) =>
+      post('/leave-activity', body: {'activityId': activityId});
+
+  Future<Map<String, dynamic>> requestJoinActivity(String activityId) =>
+      post('/request-join-activity', body: {'activityId': activityId});
 
   Future<Map<String, dynamic>> respondJoinRequest({
     required String activityId,
     required String userId,
     required bool accept,
-  }) {
-    return post(
+  }) async {
+    final result = await post(
       '/respond-join-request',
       body: {
         'activityId': activityId,
@@ -176,6 +178,21 @@ class ApiService {
         'accept': accept,
       },
     );
+
+    if (accept) {
+      try {
+        await post(
+          '/record-discovery-participant',
+          body: {
+            'activityId': activityId,
+            'userId': userId,
+          },
+        );
+      } catch (_) {
+        // A solicitação já foi aceita; métrica não deve quebrar a ação.
+      }
+    }
+    return result;
   }
 
   Future<Map<String, dynamic>> reportContent({
@@ -183,47 +200,45 @@ class ApiService {
     required String targetId,
     required String reason,
     String details = '',
-  }) {
-    return post(
-      '/report-content',
-      body: {
-        'targetType': targetType,
-        'targetId': targetId,
-        'reason': reason,
-        'details': details,
-      },
-    );
-  }
+  }) =>
+      post(
+        '/report-content',
+        body: {
+          'targetType': targetType,
+          'targetId': targetId,
+          'reason': reason,
+          'details': details,
+        },
+      );
 
-  Future<Map<String, dynamic>> deleteAccount() {
-    return post(
-      '/delete-account',
-    );
-  }
+  Future<Map<String, dynamic>> deleteAccount() => post('/delete-account');
 
   Future<Map<String, dynamic>> notifyChatMessage({
     required String activityId,
     required String messageId,
-  }) {
-    return post(
-      '/notify-chat-message',
-      body: {
-        'activityId': activityId,
-        'messageId': messageId,
-      },
-    );
-  }
+  }) =>
+      post(
+        '/notify-chat-message',
+        body: {
+          'activityId': activityId,
+          'messageId': messageId,
+        },
+      );
 
-  Future<Map<String, dynamic>> cancelActivity(
-    String activityId,
-  ) {
-    return post(
-      '/cancel-activity',
-      body: {
-        'activityId': activityId,
-      },
-    );
-  }
+  Future<Map<String, dynamic>> notifyPrivateMessage({
+    required String conversationId,
+    required String messageId,
+  }) =>
+      post(
+        '/notify-private-message',
+        body: {
+          'conversationId': conversationId,
+          'messageId': messageId,
+        },
+      );
+
+  Future<Map<String, dynamic>> cancelActivity(String activityId) =>
+      post('/cancel-activity', body: {'activityId': activityId});
 
   Future<Map<String, dynamic>> updateActivity({
     required String activityId,
@@ -237,22 +252,21 @@ class ApiService {
     required DateTime startsAt,
     required int maxParticipants,
     required bool isPrivate,
-  }) {
-    return post(
-      '/update-activity',
-      body: {
-        'activityId': activityId,
-        'title': title,
-        'description': description,
-        'category': category,
-        'address': address,
-        'latitude': latitude,
-        'longitude': longitude,
-        'geohash': geohash,
-        'startsAt': startsAt.toUtc().toIso8601String(),
-        'maxParticipants': maxParticipants,
-        'isPrivate': isPrivate,
-      },
-    );
-  }
+  }) =>
+      post(
+        '/update-activity',
+        body: {
+          'activityId': activityId,
+          'title': title,
+          'description': description,
+          'category': category,
+          'address': address,
+          'latitude': latitude,
+          'longitude': longitude,
+          'geohash': geohash,
+          'startsAt': startsAt.toUtc().toIso8601String(),
+          'maxParticipants': maxParticipants,
+          'isPrivate': isPrivate,
+        },
+      );
 }

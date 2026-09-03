@@ -42,22 +42,20 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         .limit(100)
         .snapshots()
         .map(
-          (snapshot) => snapshot.docs
-              .map((document) {
-                final data = document.data();
-                return NotificationModel(
-                  id: document.id,
-                  type: (data['type'] ?? 'generic').toString(),
-                  title: (data['title'] ?? '').toString(),
-                  body: (data['body'] ?? '').toString(),
-                  activityId: data['activityId']?.toString(),
-                  actorId: data['actorId']?.toString(),
-                  read: data['read'] == true,
-                  createdAt: (data['createdAt'] as Timestamp?)?.toDate() ??
-                      DateTime.now(),
-                );
-              })
-              .toList(),
+          (snapshot) => snapshot.docs.map((document) {
+            final data = document.data();
+            return NotificationModel(
+              id: document.id,
+              type: (data['type'] ?? 'generic').toString(),
+              title: (data['title'] ?? '').toString(),
+              body: (data['body'] ?? '').toString(),
+              activityId: data['activityId']?.toString(),
+              actorId: data['actorId']?.toString(),
+              read: data['read'] == true,
+              createdAt:
+                  (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+            );
+          }).toList(),
         );
   }
 
@@ -91,7 +89,8 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       context.snack('Notificações marcadas como lidas.');
     } on FirebaseException catch (error) {
       if (!mounted) return;
-      context.snack(error.message ?? 'Não foi possível atualizar as notificações.');
+      context.snack(
+          error.message ?? 'Não foi possível atualizar as notificações.');
     }
   }
 
@@ -138,6 +137,14 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     await _markRead(notification);
 
     if (!mounted) return;
+
+    if (notification.type == 'private_message') {
+      final actorId = notification.actorId;
+      if (actorId != null && actorId.isNotEmpty) {
+        context.push('/message/$actorId');
+      }
+      return;
+    }
 
     final activityId = notification.activityId;
     if (activityId == null || activityId.isEmpty) return;

@@ -37,6 +37,12 @@
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>O Juntaí usa o microfone para gravar e enviar mensagens de áudio.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>O Juntaí usa sua biblioteca de fotos para enviar imagens no perfil, atividades e conversas.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>O Juntaí usa a câmera para tirar fotos quando você escolher essa opção.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

@@ -53,8 +53,9 @@ class _EditActivityScreenState extends State<EditActivityScreen> {
   double originalLongitude = 0;
   String originalGeohash = '';
 
-  DocumentReference<Map<String, dynamic>> get _ref =>
-      FirebaseFirestore.instance.collection('activities').doc(widget.activityId);
+  DocumentReference<Map<String, dynamic>> get _ref => FirebaseFirestore.instance
+      .collection('activities')
+      .doc(widget.activityId);
 
   @override
   void dispose() {
@@ -144,7 +145,6 @@ class _EditActivityScreenState extends State<EditActivityScreen> {
       '',
     );
   }
-
 
   Future<void> _pickCover() async {
     if (saving || uploadingCover) return;
@@ -370,9 +370,8 @@ class _EditActivityScreenState extends State<EditActivityScreen> {
         return Scaffold(
           appBar: AppBar(
             leading: IconButton(
-              onPressed: saving
-                  ? null
-                  : () => context.go('/activity/${activity.id}'),
+              onPressed:
+                  saving ? null : () => context.go('/activity/${activity.id}'),
               icon: const Icon(Icons.arrow_back_rounded),
             ),
             title: const Text(
@@ -449,8 +448,7 @@ class _EditActivityScreenState extends State<EditActivityScreen> {
                   const SizedBox(height: 10),
                 ],
                 OutlinedButton.icon(
-                  onPressed:
-                      saving || uploadingCover ? null : _pickCover,
+                  onPressed: saving || uploadingCover ? null : _pickCover,
                   icon: uploadingCover
                       ? const SizedBox(
                           width: 18,

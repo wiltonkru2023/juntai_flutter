@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -14,10 +15,12 @@ class MessageBubble extends StatelessWidget {
     super.key,
     required this.message,
     this.onAudioConsumed,
+    this.onOptions,
   });
 
   final ChatMessage message;
-  final VoidCallback? onAudioConsumed;
+  final Future<void> Function()? onAudioConsumed;
+  final VoidCallback? onOptions;
 
   @override
   Widget build(BuildContext context) {
@@ -25,10 +28,7 @@ class MessageBubble extends StatelessWidget {
       return Center(
         child: Container(
           margin: const EdgeInsets.symmetric(vertical: 8),
-          padding: const EdgeInsets.symmetric(
-            horizontal: 12,
-            vertical: 7,
-          ),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
           decoration: BoxDecoration(
             color: Colors.grey.shade100,
             borderRadius: BorderRadius.circular(14),
@@ -44,91 +44,96 @@ class MessageBubble extends StatelessWidget {
       );
     }
 
-    final bubble = Container(
-      constraints: const BoxConstraints(maxWidth: 300),
-      padding: const EdgeInsets.fromLTRB(14, 11, 12, 8),
-      decoration: BoxDecoration(
-        color: message.mine ? AppColors.primaryLight : Colors.white,
-        border: Border.all(
-          color: message.mine
-              ? AppColors.primary.withValues(alpha: .12)
-              : AppColors.border,
-        ),
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          if (message.type == 'image')
-            _ChatImage(
-              url: message.mediaUrl,
-            ),
-          if (message.type == 'audio')
-            _AudioMessagePlayer(message: message, onConsumed: onAudioConsumed),
-          if (message.type == 'image') const SizedBox(height: 8),
-          if (message.type != 'audio' && message.text.isNotEmpty)
-            Text(
-              message.text,
-              style: const TextStyle(
-                fontSize: 15,
-                height: 1.35,
-              ),
-            ),
-          const SizedBox(height: 5),
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                '${message.createdAt.hour.toString().padLeft(2, '0')}:'
-                '${message.createdAt.minute.toString().padLeft(2, '0')}',
-                style: const TextStyle(
-                  fontSize: 11,
-                  color: AppColors.textSecondary,
-                ),
-              ),
-              if (message.mine) ...[
-                const SizedBox(width: 5),
-                Icon(
-                  message.seenBy.length > 1 || message.deliveredTo.length > 1
-                      ? Icons.done_all_rounded
-                      : Icons.done_rounded,
-                  size: 16,
-                  color: message.seenBy.length > 1
-                      ? AppColors.blue
-                      : AppColors.textSecondary,
-                ),
-              ],
-            ],
+    final bubble = GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: onOptions,
+      onLongPress: onOptions,
+      child: Container(
+        constraints: const BoxConstraints(maxWidth: 300),
+        padding: const EdgeInsets.fromLTRB(14, 11, 12, 8),
+        decoration: BoxDecoration(
+          color: message.mine ? AppColors.primaryLight : Colors.white,
+          border: Border.all(
+            color: message.mine
+                ? AppColors.primary.withValues(alpha: .12)
+                : AppColors.border,
           ),
-        ],
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (message.deletedForEveryone)
+              const _DeletedMessage()
+            else ...[
+              if (message.type == 'image') _ChatImage(url: message.mediaUrl),
+              if (message.type == 'audio')
+                _AudioMessagePlayer(
+                  message: message,
+                  onConsumed: onAudioConsumed,
+                ),
+              if (message.type == 'image') const SizedBox(height: 8),
+              if (message.type != 'audio' && message.text.isNotEmpty)
+                Text(
+                  message.text,
+                  style: const TextStyle(fontSize: 15, height: 1.35),
+                ),
+            ],
+            const SizedBox(height: 5),
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (message.editedAt != null &&
+                    !message.deletedForEveryone) ...[
+                  const Text(
+                    'editada',
+                    style: TextStyle(
+                      fontSize: 10,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                  const SizedBox(width: 5),
+                ],
+                Text(
+                  '${message.createdAt.hour.toString().padLeft(2, '0')}:'
+                  '${message.createdAt.minute.toString().padLeft(2, '0')}',
+                  style: const TextStyle(
+                    fontSize: 11,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+                if (message.mine) ...[
+                  const SizedBox(width: 5),
+                  Icon(
+                    message.seenBy.length > 1 || message.deliveredTo.length > 1
+                        ? Icons.done_all_rounded
+                        : Icons.done_rounded,
+                    size: 16,
+                    color: message.seenBy.length > 1
+                        ? AppColors.blue
+                        : AppColors.textSecondary,
+                  ),
+                ],
+              ],
+            ),
+          ],
+        ),
       ),
     );
 
     if (message.mine) {
       return Padding(
-        padding: const EdgeInsets.only(
-          left: 60,
-          bottom: 14,
-        ),
-        child: Align(
-          alignment: Alignment.centerRight,
-          child: bubble,
-        ),
+        padding: const EdgeInsets.only(left: 60, bottom: 14),
+        child: Align(alignment: Alignment.centerRight, child: bubble),
       );
     }
 
     return Padding(
-      padding: const EdgeInsets.only(
-        right: 36,
-        bottom: 14,
-      ),
+      padding: const EdgeInsets.only(right: 36, bottom: 14),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          AppAvatar(
-            name: message.senderName,
-            size: 38,
-          ),
+          AppAvatar(name: message.senderName, size: 38),
           const SizedBox(width: 9),
           Flexible(
             child: Column(
@@ -152,10 +157,36 @@ class MessageBubble extends StatelessWidget {
   }
 }
 
+class _DeletedMessage extends StatelessWidget {
+  const _DeletedMessage();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(
+          Icons.block_rounded,
+          size: 18,
+          color: AppColors.textSecondary,
+        ),
+        SizedBox(width: 7),
+        Flexible(
+          child: Text(
+            'Mensagem apagada',
+            style: TextStyle(
+              color: AppColors.textSecondary,
+              fontStyle: FontStyle.italic,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
 class _ChatImage extends StatelessWidget {
-  const _ChatImage({
-    required this.url,
-  });
+  const _ChatImage({required this.url});
 
   final String? url;
 
@@ -190,14 +221,11 @@ class _ChatImage extends StatelessWidget {
         fit: BoxFit.cover,
         loadingBuilder: (context, child, progress) {
           if (progress == null) return child;
-
           return const SizedBox(
             width: 230,
             height: 170,
             child: Center(
-              child: CircularProgressIndicator(
-                strokeWidth: 2,
-              ),
+              child: CircularProgressIndicator(strokeWidth: 2),
             ),
           );
         },
@@ -278,7 +306,7 @@ class _AudioMessagePlayer extends StatefulWidget {
   });
 
   final ChatMessage message;
-  final VoidCallback? onConsumed;
+  final Future<void> Function()? onConsumed;
 
   @override
   State<_AudioMessagePlayer> createState() => _AudioMessagePlayerState();
@@ -286,6 +314,10 @@ class _AudioMessagePlayer extends StatefulWidget {
 
 class _AudioMessagePlayerState extends State<_AudioMessagePlayer> {
   final AudioPlayer _player = AudioPlayer();
+
+  StreamSubscription<Duration>? _positionSubscription;
+  StreamSubscription<Duration>? _durationSubscription;
+  StreamSubscription<void>? _completeSubscription;
 
   Duration _position = Duration.zero;
   Duration _duration = Duration.zero;
@@ -296,30 +328,35 @@ class _AudioMessagePlayerState extends State<_AudioMessagePlayer> {
   @override
   void initState() {
     super.initState();
+    _duration = Duration(milliseconds: widget.message.audioDurationMs);
 
-    _duration = Duration(
-      milliseconds: widget.message.audioDurationMs,
-    );
-
-    _player.onPositionChanged.listen((value) {
+    _positionSubscription = _player.onPositionChanged.listen((value) {
       if (mounted) setState(() => _position = value);
     });
 
-    _player.onDurationChanged.listen((value) {
+    _durationSubscription = _player.onDurationChanged.listen((value) {
       if (mounted) setState(() => _duration = value);
     });
 
-    _player.onPlayerComplete.listen((_) {
-      if (mounted) {
-        setState(() {
-          _position = Duration.zero;
-        });
+    _completeSubscription = _player.onPlayerComplete.listen((_) async {
+      if (mounted) setState(() => _position = Duration.zero);
+
+      if (!_consumed && widget.message.viewOnce && widget.onConsumed != null) {
+        _consumed = true;
+        try {
+          await widget.onConsumed!();
+        } catch (_) {
+          _consumed = false;
+        }
       }
     });
   }
 
   @override
   void dispose() {
+    _positionSubscription?.cancel();
+    _durationSubscription?.cancel();
+    _completeSubscription?.cancel();
     _player.dispose();
 
     final path = _tempPath;
@@ -337,10 +374,12 @@ class _AudioMessagePlayerState extends State<_AudioMessagePlayer> {
     return '$minutes:${seconds.toString().padLeft(2, '0')}';
   }
 
-  Future<String?> _prepareFile() async {
-    if (_tempPath != null && File(_tempPath!).existsSync()) {
-      return _tempPath;
-    }
+  bool get _hasUrl => (widget.message.audioUrl ?? '').trim().isNotEmpty;
+  bool get _hasLegacyBase64 =>
+      (widget.message.audioBase64 ?? '').trim().isNotEmpty;
+
+  Future<String?> _prepareLegacyFile() async {
+    if (_tempPath != null && File(_tempPath!).existsSync()) return _tempPath;
 
     final encoded = widget.message.audioBase64;
     if (encoded == null || encoded.isEmpty) return null;
@@ -351,7 +390,6 @@ class _AudioMessagePlayerState extends State<_AudioMessagePlayer> {
       final bytes = base64Decode(encoded);
       final directory = await getTemporaryDirectory();
       final path = '${directory.path}/juntai_audio_${widget.message.id}.m4a';
-
       final file = File(path);
       await file.writeAsBytes(bytes, flush: true);
       _tempPath = path;
@@ -368,17 +406,17 @@ class _AudioMessagePlayerState extends State<_AudioMessagePlayer> {
       return;
     }
 
-    final path = await _prepareFile();
-    if (path == null) return;
-
-    if (!_consumed && widget.message.viewOnce && widget.onConsumed != null) {
-      _consumed = true;
-      widget.onConsumed!();
+    if (_position > Duration.zero && _player.state == PlayerState.paused) {
+      await _player.resume();
+      if (mounted) setState(() {});
+      return;
     }
 
-    if (_position > Duration.zero) {
-      await _player.resume();
+    if (_hasUrl) {
+      await _player.play(UrlSource(widget.message.audioUrl!.trim()));
     } else {
+      final path = await _prepareLegacyFile();
+      if (path == null) return;
       await _player.play(DeviceFileSource(path));
     }
 
@@ -387,17 +425,41 @@ class _AudioMessagePlayerState extends State<_AudioMessagePlayer> {
 
   @override
   Widget build(BuildContext context) {
-    if ((widget.message.audioBase64 ?? '').isEmpty && widget.message.viewOnce) {
+    if (!_hasUrl && !_hasLegacyBase64) {
+      if (widget.message.viewOnce) {
+        return const SizedBox(
+          width: 235,
+          child: Row(
+            children: [
+              Icon(
+                Icons.visibility_off_rounded,
+                color: AppColors.textSecondary,
+              ),
+              SizedBox(width: 8),
+              Text(
+                'Áudio já ouvido',
+                style: TextStyle(color: AppColors.textSecondary),
+              ),
+            ],
+          ),
+        );
+      }
+
       return const SizedBox(
         width: 235,
-        child: Row(children: [
-          Icon(Icons.visibility_off_rounded, color: AppColors.textSecondary),
-          SizedBox(width: 8),
-          Text('Áudio já ouvido',
-              style: TextStyle(color: AppColors.textSecondary)),
-        ]),
+        child: Row(
+          children: [
+            Icon(Icons.error_outline_rounded, color: AppColors.textSecondary),
+            SizedBox(width: 8),
+            Text(
+              'Áudio indisponível',
+              style: TextStyle(color: AppColors.textSecondary),
+            ),
+          ],
+        ),
       );
     }
+
     final playing = _player.state == PlayerState.playing;
     final totalMs = _duration.inMilliseconds > 0
         ? _duration.inMilliseconds
@@ -443,14 +505,26 @@ class _AudioMessagePlayerState extends State<_AudioMessagePlayer> {
                   backgroundColor: AppColors.border,
                 ),
                 const SizedBox(height: 5),
-                Text(
-                  _position > Duration.zero
-                      ? _format(_position)
-                      : _format(_duration),
-                  style: const TextStyle(
-                    color: AppColors.textSecondary,
-                    fontSize: 11,
-                  ),
+                Row(
+                  children: [
+                    Text(
+                      _position > Duration.zero
+                          ? _format(_position)
+                          : _format(_duration),
+                      style: const TextStyle(
+                        color: AppColors.textSecondary,
+                        fontSize: 11,
+                      ),
+                    ),
+                    if (widget.message.viewOnce) ...[
+                      const SizedBox(width: 6),
+                      const Icon(
+                        Icons.looks_one_rounded,
+                        size: 14,
+                        color: AppColors.primary,
+                      ),
+                    ],
+                  ],
                 ),
               ],
             ),

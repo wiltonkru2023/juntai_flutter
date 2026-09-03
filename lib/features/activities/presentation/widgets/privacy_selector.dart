@@ -1,2 +1,28 @@
-import 'package:flutter/material.dart'; import '../../../../app/theme/app_colors.dart';
-class PrivacySelector extends StatelessWidget{const PrivacySelector({super.key,required this.isPrivate,required this.onChanged});final bool isPrivate;final ValueChanged<bool> onChanged;@override Widget build(BuildContext context)=>SegmentedButton<bool>(segments:const [ButtonSegment(value:false,label:Text('Público')),ButtonSegment(value:true,label:Text('Privado'))],selected:{isPrivate},onSelectionChanged:(s)=>onChanged(s.first),style:ButtonStyle(backgroundColor:WidgetStateProperty.resolveWith((states)=>states.contains(WidgetState.selected)?AppColors.primary:Colors.white),foregroundColor:WidgetStateProperty.resolveWith((states)=>states.contains(WidgetState.selected)?Colors.white:null)));}
+import 'package:flutter/material.dart';
+import '../../../../app/theme/app_colors.dart';
+
+class PrivacySelector extends StatelessWidget {
+  const PrivacySelector(
+      {super.key, required this.isPrivate, required this.onChanged});
+  final bool isPrivate;
+  final ValueChanged<bool> onChanged;
+  @override
+  Widget build(BuildContext context) => SegmentedButton<bool>(
+          segments: const [
+            ButtonSegment(value: false, label: Text('Público')),
+            ButtonSegment(value: true, label: Text('Privado'))
+          ],
+          selected: {
+            isPrivate
+          },
+          onSelectionChanged: (s) => onChanged(s.first),
+          style: ButtonStyle(
+              backgroundColor: WidgetStateProperty.resolveWith((states) =>
+                  states.contains(WidgetState.selected)
+                      ? AppColors.primary
+                      : Colors.white),
+              foregroundColor: WidgetStateProperty.resolveWith((states) =>
+                  states.contains(WidgetState.selected)
+                      ? Colors.white
+                      : null)));
+}

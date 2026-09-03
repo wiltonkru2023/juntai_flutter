@@ -3,10 +3,6 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Discovery data model: business_profiles contain public storefront data
-    // only; discoveries contain bounded promotional/event content; interested
-    // and activity_links are deterministic attribution markers.
-
     function signedIn() {
       return request.auth != null;
     }
@@ -19,27 +15,52 @@ service cloud.firestore {
       return value is string && (value == '' || value.matches('^https?://.{1,500}$'));
     }
 
+    function hiddenFor(data) {
+      return ('hiddenFor' in data && data.hiddenFor is list) ? data.hiddenFor : [];
+    }
+
+    function deletedForEveryone(data) {
+      return 'deletedForEveryone' in data && data.deletedForEveryone == true;
+    }
+
     function validBusiness(data) {
-      return data.keys().hasOnly(['ownerId','name','category','city','address','latitude','longitude','websiteUrl','description','verified','reviewStatus','plan','monthlyPostLimit','activePostLimit','postsUsedThisMonth','createdAt','updatedAt'])
-        && data.ownerId is string && data.name is string && data.name.size() >= 2 && data.name.size() <= 80
+      return data.keys().hasOnly([
+          'ownerId','name','category','city','address','latitude','longitude',
+          'websiteUrl','description','verified','reviewStatus','plan',
+          'monthlyPostLimit','activePostLimit','postsUsedThisMonth','usageMonth',
+          'createdAt','updatedAt'
+        ])
+        && data.ownerId is string
+        && data.name is string && data.name.size() >= 2 && data.name.size() <= 80
         && data.category is string && data.category.size() >= 2 && data.category.size() <= 50
         && data.city is string && data.city.size() >= 2 && data.city.size() <= 80
         && data.address is string && data.address.size() >= 5 && data.address.size() <= 250
         && data.latitude is number && data.latitude >= -90 && data.latitude <= 90
         && data.longitude is number && data.longitude >= -180 && data.longitude <= 180
-        && validUrl(data.websiteUrl) && data.description is string && data.description.size() <= 800
-        && data.verified is bool && data.reviewStatus in ['pending','approved','rejected']
+        && validUrl(data.websiteUrl)
+        && data.description is string && data.description.size() <= 800
+        && data.verified is bool
+        && data.reviewStatus in ['pending','approved','rejected']
         && data.plan in ['free','local','pro','unlimited']
         && data.monthlyPostLimit is int && data.monthlyPostLimit >= 1
         && data.activePostLimit is int && data.activePostLimit >= 1
         && data.postsUsedThisMonth is int && data.postsUsedThisMonth >= 0
+        && (!('usageMonth' in data) || (data.usageMonth is string && data.usageMonth.size() <= 7))
         && data.createdAt is timestamp && data.updatedAt is timestamp;
     }
 
     function validDiscovery(data) {
-      return data.keys().hasOnly(['businessId','businessName','businessCategory','businessVerified','type','title','description','coverUrl','address','latitude','longitude','websiteUrl','groupBenefit','ctaLabel','officialEvent','eventStartsAt','sponsored','status','views','opens','activitiesCreated','participantsGenerated','createdAt','updatedAt'])
-        && data.businessId is string && data.businessName is string && data.businessName.size() >= 2 && data.businessName.size() <= 80
-        && data.businessCategory is string && data.businessCategory.size() <= 50 && data.businessVerified is bool
+      return data.keys().hasOnly([
+          'businessId','businessName','businessCategory','businessVerified','type',
+          'title','description','coverUrl','address','latitude','longitude',
+          'websiteUrl','groupBenefit','ctaLabel','officialEvent','eventStartsAt',
+          'sponsored','status','views','opens','activitiesCreated',
+          'participantsGenerated','createdAt','updatedAt'
+        ])
+        && data.businessId is string
+        && data.businessName is string && data.businessName.size() >= 2 && data.businessName.size() <= 80
+        && data.businessCategory is string && data.businessCategory.size() <= 50
+        && data.businessVerified is bool
         && data.type in ['experience','event','open_slots','promotion','schedule']
         && data.title is string && data.title.size() >= 3 && data.title.size() <= 120
         && data.description is string && data.description.size() >= 3 && data.description.size() <= 1200
@@ -49,9 +70,12 @@ service cloud.firestore {
         && data.longitude is number && data.longitude >= -180 && data.longitude <= 180
         && data.groupBenefit is string && data.groupBenefit.size() <= 300
         && data.ctaLabel is string && data.ctaLabel.size() >= 2 && data.ctaLabel.size() <= 40
-        && data.officialEvent is bool && (data.eventStartsAt == null || data.eventStartsAt is timestamp)
-        && data.sponsored is bool && data.status in ['draft','published','archived']
-        && data.views is int && data.views >= 0 && data.opens is int && data.opens >= 0
+        && data.officialEvent is bool
+        && (data.eventStartsAt == null || data.eventStartsAt is timestamp)
+        && data.sponsored is bool
+        && data.status in ['draft','published','archived']
+        && data.views is int && data.views >= 0
+        && data.opens is int && data.opens >= 0
         && data.activitiesCreated is int && data.activitiesCreated >= 0
         && data.participantsGenerated is int && data.participantsGenerated >= 0
         && data.createdAt is timestamp && data.updatedAt is timestamp;
@@ -70,13 +94,11 @@ service cloud.firestore {
     }
 
     function isCreator(activityId) {
-      return signedIn()
-        && activity(activityId).data.creatorId == request.auth.uid;
+      return signedIn() && activity(activityId).data.creatorId == request.auth.uid;
     }
 
     function isParticipant(activityId) {
-      return signedIn()
-        && exists(participantPath(activityId, request.auth.uid));
+      return signedIn() && exists(participantPath(activityId, request.auth.uid));
     }
 
     function creatorActivityUpdate() {
@@ -84,22 +106,11 @@ service cloud.firestore {
         .diff(resource.data)
         .affectedKeys()
         .hasOnly([
-          'title',
-          'description',
-          'category',
-          'address',
-          'latitude',
-          'longitude',
-          'geohash',
-          'startsAt',
-          'maxParticipants',
-          'isPrivate',
-          'coverUrl',
-          'status',
-          'updatedAt'
+          'title','description','category','address','latitude','longitude',
+          'geohash','startsAt','maxParticipants','isPrivate','coverUrl',
+          'status','updatedAt'
         ])
-        && request.resource.data.maxParticipants
-           >= resource.data.participantCount;
+        && request.resource.data.maxParticipants >= resource.data.participantCount;
     }
 
     match /users/{uid} {
@@ -130,14 +141,9 @@ service cloud.firestore {
 
       match /notifications/{notificationId} {
         allow read: if isOwner(uid);
-
         allow update: if isOwner(uid)
-          && request.resource.data
-            .diff(resource.data)
-            .affectedKeys()
-            .hasOnly(['read'])
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read'])
           && request.resource.data.read is bool;
-
         allow create, delete: if false;
       }
 
@@ -169,7 +175,6 @@ service cloud.firestore {
 
     match /business_profiles/{businessId} {
       allow read: if signedIn();
-      // Criação, edição, plano e verificação passam pelo backend autenticado.
       allow create, update, delete: if false;
 
       match /followers/{uid} {
@@ -185,13 +190,14 @@ service cloud.firestore {
 
     match /discoveries/{discoveryId} {
       allow read: if signedIn();
-      // Publicação, limites de plano, métricas e patrocínio são validados no backend.
       allow create, update, delete: if false;
 
       match /interested/{uid} {
         allow read: if signedIn();
-        allow create: if isOwner(uid) && request.resource.data.keys().hasOnly(['userId','createdAt'])
-          && request.resource.data.userId == uid && request.resource.data.createdAt is timestamp;
+        allow create: if isOwner(uid)
+          && request.resource.data.keys().hasOnly(['userId','createdAt'])
+          && request.resource.data.userId == uid
+          && request.resource.data.createdAt is timestamp;
         allow update: if false;
         allow delete: if isOwner(uid);
       }
@@ -211,26 +217,37 @@ service cloud.firestore {
       match /metric_users/{metricId} {
         allow read, write: if false;
       }
+
+      match /participant_users/{uid} {
+        allow read, write: if false;
+      }
     }
 
     match /private_conversations/{conversationId} {
       function isPrivateMember() {
         return signedIn() && request.auth.uid in resource.data.participants;
       }
+
       function validConversation(data) {
-        return data.keys().hasOnly(['participants','createdAt','updatedAt','lastMessage','lastSenderId','lastMessageId'])
-          && data.keys().hasAll(['participants','createdAt','updatedAt','lastMessage','lastSenderId','lastMessageId'])
+        return data.keys().hasOnly([
+            'participants','createdAt','updatedAt','lastMessage','lastSenderId','lastMessageId'
+          ])
+          && data.keys().hasAll([
+            'participants','createdAt','updatedAt','lastMessage','lastSenderId','lastMessageId'
+          ])
           && data.participants is list && data.participants.size() == 2
           && data.createdAt is timestamp && data.updatedAt is timestamp
           && data.lastMessage is string && data.lastMessage.size() <= 180
           && data.lastSenderId is string && data.lastSenderId in data.participants
           && data.lastMessageId is string && data.lastMessageId.size() <= 128;
       }
+
       allow read: if isPrivateMember();
       allow update: if isPrivateMember()
         && validConversation(request.resource.data)
         && request.resource.data.participants == resource.data.participants
-        && request.resource.data.createdAt == resource.data.createdAt;
+        && request.resource.data.createdAt == resource.data.createdAt
+        && request.resource.data.lastSenderId == request.auth.uid;
       allow create: if signedIn()
         && validConversation(request.resource.data)
         && request.auth.uid in request.resource.data.participants;
@@ -240,51 +257,124 @@ service cloud.firestore {
         function parentMembers() {
           return get(/databases/$(database)/documents/private_conversations/$(conversationId)).data.participants;
         }
+
+        function parentMembersAfter() {
+          return getAfter(/databases/$(database)/documents/private_conversations/$(conversationId)).data.participants;
+        }
+
+        function otherPrivateUid() {
+          return parentMembersAfter()[0] == request.auth.uid
+            ? parentMembersAfter()[1]
+            : parentMembersAfter()[0];
+        }
+
+        function privateMessagingAllowed() {
+          return !exists(/databases/$(database)/documents/users/$(request.auth.uid)/blocks/$(otherPrivateUid()))
+            && !exists(/databases/$(database)/documents/users/$(otherPrivateUid())/blocks/$(request.auth.uid));
+        }
+
         function validPrivateMessage(data) {
-          return data.keys().hasOnly(['senderId','type','text','mediaUrl','audioBase64','audioMimeType',
-              'audioDurationMs','viewOnce','activityId','activityTitle','activityStartsAt','createdAt',
-              'deliveredTo','seenBy','consumedBy','consumedAt'])
+          return data.keys().hasOnly([
+              'senderId','type','text','mediaUrl','audioUrl','audioBase64',
+              'audioMimeType','audioDurationMs','viewOnce','activityId',
+              'activityTitle','activityStartsAt','createdAt','deliveredTo','seenBy',
+              'consumedBy','consumedAt','hiddenFor','editedAt',
+              'deletedForEveryone','deletedAt','deletedBy'
+            ])
             && data.keys().hasAll(['senderId','type','text','createdAt','deliveredTo','seenBy'])
             && data.senderId is string && data.senderId.size() <= 128
             && data.type in ['text','image','audio','activity']
             && data.text is string && data.text.size() <= 4000
+            && (data.type != 'text' || deletedForEveryone(data) || data.text.size() > 0)
             && data.createdAt is timestamp
             && data.deliveredTo is list && data.deliveredTo.size() <= 2
             && data.seenBy is list && data.seenBy.size() <= 2
-            && (data.type != 'text' || (data.text.size() > 0 && data.text.size() <= 4000))
-            && (!('mediaUrl' in data) || (data.mediaUrl is string && data.mediaUrl.size() <= 2048))
+            && (!('mediaUrl' in data) || data.mediaUrl == null || (data.mediaUrl is string && data.mediaUrl.size() <= 2048))
+            && (!('audioUrl' in data) || data.audioUrl == null || (data.audioUrl is string && data.audioUrl.size() <= 2048))
             && (!('audioBase64' in data) || data.audioBase64 == null || (data.audioBase64 is string && data.audioBase64.size() <= 900000))
-            && (!('audioMimeType' in data) || (data.audioMimeType is string && data.audioMimeType.size() <= 40))
-            && (!('audioDurationMs' in data) || (data.audioDurationMs is int && data.audioDurationMs > 0 && data.audioDurationMs <= 60000))
+            && (!('audioMimeType' in data) || data.audioMimeType == null || (data.audioMimeType is string && data.audioMimeType.size() <= 40))
+            && (!('audioDurationMs' in data) || (data.audioDurationMs is int && data.audioDurationMs >= 0 && data.audioDurationMs <= 60000))
             && (!('viewOnce' in data) || data.viewOnce is bool)
             && (!('activityId' in data) || (data.activityId is string && data.activityId.size() <= 128))
-            && (!('activityTitle' in data) || (data.activityTitle is string && data.activityTitle.size() <= 180));
+            && (!('activityTitle' in data) || (data.activityTitle is string && data.activityTitle.size() <= 180))
+            && (!('activityStartsAt' in data) || data.activityStartsAt is timestamp)
+            && (!('consumedBy' in data) || data.consumedBy == null || data.consumedBy is string)
+            && (!('consumedAt' in data) || data.consumedAt == null || data.consumedAt is timestamp)
+            && (!('hiddenFor' in data) || (data.hiddenFor is list && data.hiddenFor.size() <= 2))
+            && (!('editedAt' in data) || data.editedAt == null || data.editedAt is timestamp)
+            && (!('deletedForEveryone' in data) || data.deletedForEveryone is bool)
+            && (!('deletedAt' in data) || data.deletedAt == null || data.deletedAt is timestamp)
+            && (!('deletedBy' in data) || data.deletedBy == null || data.deletedBy is string);
         }
-        allow read: if signedIn()
-          && request.auth.uid in parentMembers();
+
+        allow read: if signedIn() && request.auth.uid in parentMembers();
+
         allow create: if signedIn()
           && validPrivateMessage(request.resource.data)
           && request.resource.data.senderId == request.auth.uid
-          && request.auth.uid in getAfter(/databases/$(database)/documents/private_conversations/$(conversationId)).data.participants
+          && request.auth.uid in parentMembersAfter()
+          && privateMessagingAllowed()
           && request.resource.data.deliveredTo == [request.auth.uid]
-          && request.resource.data.seenBy == [request.auth.uid];
-        allow update: if signedIn() && request.auth.uid in parentMembers()
+          && request.resource.data.seenBy == [request.auth.uid]
+          && hiddenFor(request.resource.data).size() == 0
+          && !deletedForEveryone(request.resource.data);
+
+        allow update: if signedIn()
+          && request.auth.uid in parentMembers()
           && validPrivateMessage(request.resource.data)
           && request.resource.data.senderId == resource.data.senderId
           && request.resource.data.createdAt == resource.data.createdAt
           && (
-            (request.auth.uid != resource.data.senderId
+            (
+              request.auth.uid != resource.data.senderId
               && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['deliveredTo','seenBy'])
+              && request.resource.data.deliveredTo.hasAll(resource.data.deliveredTo)
+              && request.resource.data.seenBy.hasAll(resource.data.seenBy)
               && request.auth.uid in request.resource.data.deliveredTo
-              && (request.resource.data.seenBy == resource.data.seenBy
-                || request.auth.uid in request.resource.data.seenBy))
-            ||
-            (request.auth.uid != resource.data.senderId && resource.data.type == 'audio'
+            )
+            || (
+              request.resource.data.diff(resource.data).affectedKeys().hasOnly(['hiddenFor'])
+              && hiddenFor(request.resource.data).hasAll(hiddenFor(resource.data))
+              && request.auth.uid in hiddenFor(request.resource.data)
+              && hiddenFor(request.resource.data).size() <= hiddenFor(resource.data).size() + 1
+            )
+            || (
+              request.auth.uid == resource.data.senderId
+              && resource.data.type == 'text'
+              && !deletedForEveryone(resource.data)
+              && request.time <= resource.data.createdAt + duration.value(15, 'm')
+              && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['text','editedAt'])
+              && request.resource.data.text.size() > 0
+              && request.resource.data.editedAt == request.time
+            )
+            || (
+              request.auth.uid == resource.data.senderId
+              && !deletedForEveryone(resource.data)
+              && request.time <= resource.data.createdAt + duration.value(48, 'h')
+              && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+                'deletedForEveryone','deletedAt','deletedBy','text','mediaUrl','audioUrl','audioBase64'
+              ])
+              && request.resource.data.deletedForEveryone == true
+              && request.resource.data.deletedAt == request.time
+              && request.resource.data.deletedBy == request.auth.uid
+              && request.resource.data.text == ''
+              && (!('mediaUrl' in request.resource.data) || request.resource.data.mediaUrl == null)
+              && (!('audioUrl' in request.resource.data) || request.resource.data.audioUrl == null)
+              && (!('audioBase64' in request.resource.data) || request.resource.data.audioBase64 == null)
+            )
+            || (
+              request.auth.uid != resource.data.senderId
+              && resource.data.type == 'audio'
               && resource.data.viewOnce == true
-              && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['audioBase64','consumedBy','consumedAt'])
-              && request.resource.data.audioBase64 == null
-              && request.resource.data.consumedBy == request.auth.uid)
+              && !deletedForEveryone(resource.data)
+              && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['audioUrl','audioBase64','consumedBy','consumedAt'])
+              && (!('audioUrl' in request.resource.data) || request.resource.data.audioUrl == null)
+              && (!('audioBase64' in request.resource.data) || request.resource.data.audioBase64 == null)
+              && request.resource.data.consumedBy == request.auth.uid
+              && request.resource.data.consumedAt == request.time
+            )
           );
+
         allow delete: if false;
       }
     }
@@ -298,69 +388,132 @@ service cloud.firestore {
         && request.resource.data.maxParticipants >= 2
         && request.resource.data.status == 'active';
 
-      allow update: if isCreator(activityId)
-        && creatorActivityUpdate();
-
+      allow update: if isCreator(activityId) && creatorActivityUpdate();
       allow delete: if isCreator(activityId);
 
       match /participants/{uid} {
         allow read: if signedIn();
-
         allow create: if signedIn()
           && uid == request.auth.uid
           && isCreator(activityId)
           && request.resource.data.userId == request.auth.uid
           && request.resource.data.role == 'creator';
-
         allow update, delete: if false;
       }
 
       match /join_requests/{requestId} {
-        allow read: if signedIn()
-          && (
-            isCreator(activityId)
-            || request.auth.uid == requestId
-          );
-
+        allow read: if signedIn() && (isCreator(activityId) || request.auth.uid == requestId);
         allow create, update, delete: if false;
       }
 
       match /chat/{messageId} {
-        allow read: if isParticipant(activityId)
-          || isCreator(activityId);
+        function groupMember() {
+          return isParticipant(activityId) || isCreator(activityId);
+        }
+
+        function validGroupMessage(data) {
+          return data.keys().hasOnly([
+              'senderId','senderName','type','text','mediaUrl','audioUrl','audioBase64',
+              'audioMimeType','audioDurationMs','viewOnce','createdAt','seenBy',
+              'consumedBy','consumedAt','hiddenFor','editedAt',
+              'deletedForEveryone','deletedAt','deletedBy'
+            ])
+            && data.keys().hasAll(['senderId','senderName','type','text','createdAt','seenBy'])
+            && data.senderId is string && data.senderId.size() <= 128
+            && data.senderName is string && data.senderName.size() <= 120
+            && data.type in ['text','image','audio']
+            && data.text is string && data.text.size() <= 4000
+            && (data.type != 'text' || deletedForEveryone(data) || data.text.size() > 0)
+            && data.createdAt is timestamp
+            && data.seenBy is list && data.seenBy.size() <= 500
+            && (!('mediaUrl' in data) || data.mediaUrl == null || (data.mediaUrl is string && data.mediaUrl.size() <= 2048))
+            && (!('audioUrl' in data) || data.audioUrl == null || (data.audioUrl is string && data.audioUrl.size() <= 2048))
+            && (!('audioBase64' in data) || data.audioBase64 == null || (data.audioBase64 is string && data.audioBase64.size() <= 900000))
+            && (!('audioMimeType' in data) || data.audioMimeType == null || (data.audioMimeType is string && data.audioMimeType.size() <= 40))
+            && (!('audioDurationMs' in data) || (data.audioDurationMs is int && data.audioDurationMs >= 0 && data.audioDurationMs <= 60000))
+            && (!('viewOnce' in data) || data.viewOnce is bool)
+            && (!('consumedBy' in data) || data.consumedBy == null || data.consumedBy is string)
+            && (!('consumedAt' in data) || data.consumedAt == null || data.consumedAt is timestamp)
+            && (!('hiddenFor' in data) || (data.hiddenFor is list && data.hiddenFor.size() <= 500))
+            && (!('editedAt' in data) || data.editedAt == null || data.editedAt is timestamp)
+            && (!('deletedForEveryone' in data) || data.deletedForEveryone is bool)
+            && (!('deletedAt' in data) || data.deletedAt == null || data.deletedAt is timestamp)
+            && (!('deletedBy' in data) || data.deletedBy == null || data.deletedBy is string);
+        }
+
+        allow read: if groupMember();
 
         allow create: if signedIn()
-          && (
-            isParticipant(activityId)
-            || isCreator(activityId)
-          )
-          && request.resource.data.senderId == request.auth.uid;
+          && groupMember()
+          && validGroupMessage(request.resource.data)
+          && request.resource.data.senderId == request.auth.uid
+          && request.resource.data.seenBy == [request.auth.uid]
+          && hiddenFor(request.resource.data).size() == 0
+          && !deletedForEveryone(request.resource.data);
 
         allow update: if signedIn()
+          && groupMember()
+          && validGroupMessage(request.resource.data)
+          && request.resource.data.senderId == resource.data.senderId
+          && request.resource.data.createdAt == resource.data.createdAt
           && (
-            resource.data.senderId == request.auth.uid
+            (
+              request.auth.uid != resource.data.senderId
+              && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['seenBy'])
+              && request.resource.data.seenBy.hasAll(resource.data.seenBy)
+              && request.auth.uid in request.resource.data.seenBy
+            )
             || (
-              (isParticipant(activityId) || isCreator(activityId))
+              request.resource.data.diff(resource.data).affectedKeys().hasOnly(['hiddenFor'])
+              && hiddenFor(request.resource.data).hasAll(hiddenFor(resource.data))
+              && request.auth.uid in hiddenFor(request.resource.data)
+              && hiddenFor(request.resource.data).size() <= hiddenFor(resource.data).size() + 1
+            )
+            || (
+              request.auth.uid == resource.data.senderId
+              && resource.data.type == 'text'
+              && !deletedForEveryone(resource.data)
+              && request.time <= resource.data.createdAt + duration.value(15, 'm')
+              && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['text','editedAt'])
+              && request.resource.data.text.size() > 0
+              && request.resource.data.editedAt == request.time
+            )
+            || (
+              request.auth.uid == resource.data.senderId
+              && !deletedForEveryone(resource.data)
+              && request.time <= resource.data.createdAt + duration.value(48, 'h')
+              && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+                'deletedForEveryone','deletedAt','deletedBy','text','mediaUrl','audioUrl','audioBase64'
+              ])
+              && request.resource.data.deletedForEveryone == true
+              && request.resource.data.deletedAt == request.time
+              && request.resource.data.deletedBy == request.auth.uid
+              && request.resource.data.text == ''
+              && (!('mediaUrl' in request.resource.data) || request.resource.data.mediaUrl == null)
+              && (!('audioUrl' in request.resource.data) || request.resource.data.audioUrl == null)
+              && (!('audioBase64' in request.resource.data) || request.resource.data.audioBase64 == null)
+            )
+            || (
+              request.auth.uid != resource.data.senderId
               && resource.data.type == 'audio'
               && resource.data.viewOnce == true
-              && request.resource.data.diff(resource.data).affectedKeys()
-                .hasOnly(['audioBase64', 'consumedBy', 'consumedAt'])
-              && request.resource.data.audioBase64 == null
+              && !deletedForEveryone(resource.data)
+              && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['audioUrl','audioBase64','consumedBy','consumedAt'])
+              && (!('audioUrl' in request.resource.data) || request.resource.data.audioUrl == null)
+              && (!('audioBase64' in request.resource.data) || request.resource.data.audioBase64 == null)
               && request.resource.data.consumedBy == request.auth.uid
+              && request.resource.data.consumedAt == request.time
             )
           );
-        allow delete: if signedIn()
-          && resource.data.senderId == request.auth.uid;
+
+        allow delete: if false;
       }
     }
 
-    // Regra explícita para consultas collectionGroup('participants').
-    // É usada pela tela Conversas para localizar os grupos do usuário.
     match /{path=**}/participants/{participantId} {
       allow read: if signedIn();
     }
 
-    // Denúncias e demais operações administrativas são feitas pelo servidor Render.
     match /reports/{reportId} {
       allow read, create, update, delete: if false;
     }

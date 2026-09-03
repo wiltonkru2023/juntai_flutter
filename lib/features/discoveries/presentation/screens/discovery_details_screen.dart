@@ -21,11 +21,19 @@ class DiscoveryDetailsScreen extends StatelessWidget {
               .doc(discoveryId)
               .get(),
           builder: (context, snapshot) {
-            if (!snapshot.hasData)
+            if (!snapshot.hasData) {
               return const Center(child: CircularProgressIndicator());
-            if (!snapshot.data!.exists)
+            }
+            if (!snapshot.data!.exists) {
               return const Center(child: Text('Descoberta não encontrada.'));
+            }
             final d = Discovery.fromFirestore(snapshot.data!);
+            final currentUid = FirebaseAuth.instance.currentUser?.uid;
+            if (d.status != 'published' && d.businessId != currentUid) {
+              return const Center(
+                child: Text('Esta publicação não está mais disponível.'),
+              );
+            }
             return CustomScrollView(slivers: [
               SliverAppBar(
                   expandedHeight: (d.coverUrl ?? '').isEmpty ? 120 : 280,
@@ -164,10 +172,11 @@ class _RelatedGroups extends StatelessWidget {
                     a.status == 'active' &&
                     a.startsAt.isAfter(DateTime.now()))
                 .toList();
-            if (groups.isEmpty)
+            if (groups.isEmpty) {
               return const Text(
                   'Seja a primeira pessoa a criar um grupo para ir.',
                   style: TextStyle(color: AppColors.textSecondary));
+            }
             return Column(children: [
               for (final group in groups)
                 Padding(

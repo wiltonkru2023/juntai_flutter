@@ -160,12 +160,15 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
         final type = (message['type'] ?? 'text').toString();
         final text = (message['text'] ?? '').toString();
         final sender = (message['senderName'] ?? 'Usuário').toString();
+        final deleted = message['deletedForEveryone'] == true;
 
-        final lastMessage = switch (type) {
-          'image' => '$sender enviou uma foto',
-          'audio' => '$sender enviou um áudio',
-          _ => text.isEmpty ? 'Nova mensagem' : '$sender: $text',
-        };
+        final lastMessage = deleted
+            ? 'Mensagem apagada'
+            : switch (type) {
+                'image' => '$sender enviou uma foto',
+                'audio' => '$sender enviou um áudio',
+                _ => text.isEmpty ? 'Nova mensagem' : '$sender: $text',
+              };
 
         final time =
             (message['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now();

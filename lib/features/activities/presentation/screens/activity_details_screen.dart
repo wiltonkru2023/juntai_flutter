@@ -433,7 +433,7 @@ class _ActivityDetailsScreenState extends State<ActivityDetailsScreen> {
                                         ),
                                       )
                                     else if (isCreator)
-                                      AppButton(
+                                      const AppButton(
                                         label: 'Você é o organizador',
                                         icon: Icons.verified_rounded,
                                         onPressed: null,

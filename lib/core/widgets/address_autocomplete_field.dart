@@ -28,8 +28,7 @@ class AddressAutocompleteField extends StatefulWidget {
       _AddressAutocompleteFieldState();
 }
 
-class _AddressAutocompleteFieldState
-    extends State<AddressAutocompleteField> {
+class _AddressAutocompleteFieldState extends State<AddressAutocompleteField> {
   final FocusNode _focusNode = FocusNode();
 
   Timer? _debounce;

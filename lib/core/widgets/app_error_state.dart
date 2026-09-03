@@ -1,2 +1,17 @@
 import 'package:flutter/material.dart';
-class AppErrorState extends StatelessWidget{const AppErrorState({super.key,this.message='Não foi possível carregar.',this.onRetry});final String message;final VoidCallback? onRetry;@override Widget build(BuildContext context)=>Center(child:Column(mainAxisSize:MainAxisSize.min,children:[const Icon(Icons.error_outline_rounded,size:48),const SizedBox(height:12),Text(message),if(onRetry!=null)TextButton(onPressed:onRetry,child:const Text('Tentar novamente'))]));}
+
+class AppErrorState extends StatelessWidget {
+  const AppErrorState(
+      {super.key, this.message = 'Não foi possível carregar.', this.onRetry});
+  final String message;
+  final VoidCallback? onRetry;
+  @override
+  Widget build(BuildContext context) => Center(
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+        const Icon(Icons.error_outline_rounded, size: 48),
+        const SizedBox(height: 12),
+        Text(message),
+        if (onRetry != null)
+          TextButton(onPressed: onRetry, child: const Text('Tentar novamente'))
+      ]));
+}
