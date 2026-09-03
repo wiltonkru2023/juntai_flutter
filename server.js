@@ -4,11 +4,15 @@ const admin = require('firebase-admin');
 
 const app = express();
 app.use(cors());
-app.use(express.json({ limit: '256kb' }));
+app.use(express.json({ limit: '8mb' }));
 
 const projectId = process.env.FIREBASE_PROJECT_ID;
 const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
 const privateKey = process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n');
+
+const imageKitPublicKey = process.env.IMAGEKIT_PUBLIC_KEY || '';
+const imageKitPrivateKey = process.env.IMAGEKIT_PRIVATE_KEY || '';
+const imageKitUrlEndpoint = process.env.IMAGEKIT_URL_ENDPOINT || '';
 
 if (!projectId || !clientEmail || !privateKey) {
   console.error('FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL e FIREBASE_PRIVATE_KEY são obrigatórios.');
@@ -224,6 +228,158 @@ app.get('/', (_req, res) => {
 app.get('/health', (_req, res) => {
   res.json({ ok: true });
 });
+
+
+app.post('/upload-image', authenticate, async (req, res, next) => {
+  try {
+    if (!imageKitPrivateKey) {
+      throw new ApiError(
+        503,
+        'image-service-not-configured',
+        'O serviço de imagens ainda não está configurado no servidor.',
+      );
+    }
+
+    const uid = req.user.uid;
+    const purpose = requiredString(req.body?.purpose, 'purpose', 30);
+    const encoded = requiredString(req.body?.base64, 'base64', 7_500_000);
+    const requestedName = optionalString(req.body?.fileName, 160);
+    const mimeType = optionalString(req.body?.mimeType, 80).toLowerCase();
+
+    if (!['profile', 'activity', 'chat'].includes(purpose)) {
+      throw new ApiError(400, 'invalid-argument', 'Destino de imagem inválido.');
+    }
+
+    const allowedMimeTypes = new Set([
+      'image/jpeg',
+      'image/png',
+      'image/webp',
+      'image/heic',
+      'image/heif',
+    ]);
+
+    if (!allowedMimeTypes.has(mimeType)) {
+      throw new ApiError(
+        400,
+        'invalid-argument',
+        'Formato de imagem não suportado. Use JPG, PNG, WEBP ou HEIC.',
+      );
+    }
+
+    let bytes;
+    try {
+      bytes = Buffer.from(encoded, 'base64');
+    } catch (_) {
+      throw new ApiError(400, 'invalid-argument', 'Imagem inválida.');
+    }
+
+    if (!bytes.length) {
+      throw new ApiError(400, 'invalid-argument', 'Imagem vazia.');
+    }
+
+    if (bytes.length > 4 * 1024 * 1024) {
+      throw new ApiError(
+        413,
+        'payload-too-large',
+        'A imagem ficou grande demais. Escolha uma foto menor.',
+      );
+    }
+
+    const extensionByMime = {
+      'image/jpeg': 'jpg',
+      'image/png': 'png',
+      'image/webp': 'webp',
+      'image/heic': 'heic',
+      'image/heif': 'heif',
+    };
+
+    const extension = extensionByMime[mimeType] || 'jpg';
+    const safeRequestedName = requestedName
+      .replace(/[^a-zA-Z0-9._-]/g, '_')
+      .replace(/\.+/g, '.')
+      .slice(0, 120);
+
+    const generatedName =
+      purpose === 'profile'
+        ? `profile_${uid}.${extension}`
+        : `${purpose}_${Date.now()}_${Math.random().toString(36).slice(2, 10)}.${extension}`;
+
+    const fileName = safeRequestedName || generatedName;
+    const folder = `/juntai/${purpose}/${uid}`;
+
+    const form = new FormData();
+    form.append('file', new Blob([bytes], { type: mimeType }), fileName);
+    form.append('fileName', fileName);
+    form.append('folder', folder);
+    form.append('useUniqueFileName', purpose === 'profile' ? 'false' : 'true');
+
+    const auth = Buffer.from(`${imageKitPrivateKey}:`).toString('base64');
+
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 45000);
+
+    let uploadResponse;
+    try {
+      uploadResponse = await fetch(
+        'https://upload.imagekit.io/api/v1/files/upload',
+        {
+          method: 'POST',
+          headers: {
+            Authorization: `Basic ${auth}`,
+            Accept: 'application/json',
+          },
+          body: form,
+          signal: controller.signal,
+        },
+      );
+    } finally {
+      clearTimeout(timeout);
+    }
+
+    const payload = await uploadResponse.json().catch(() => ({}));
+
+    if (!uploadResponse.ok) {
+      console.error('ImageKit upload error:', uploadResponse.status, payload);
+      throw new ApiError(
+        502,
+        'image-upload-failed',
+        String(payload?.message || 'Não foi possível enviar a imagem.'),
+      );
+    }
+
+    const url = String(payload?.url || '').trim();
+    const fileId = String(payload?.fileId || '').trim();
+
+    if (!url) {
+      throw new ApiError(
+        502,
+        'image-upload-failed',
+        'O servidor de imagens não retornou a URL da foto.',
+      );
+    }
+
+    res.json({
+      ok: true,
+      url,
+      fileId,
+      urlEndpoint: imageKitUrlEndpoint,
+      publicKeyConfigured: Boolean(imageKitPublicKey),
+    });
+  } catch (error) {
+    if (error?.name === 'AbortError') {
+      return next(
+        new ApiError(
+          504,
+          'image-upload-timeout',
+          'O envio da imagem demorou demais. Tente novamente.',
+        ),
+      );
+    }
+
+    next(error);
+  }
+});
+
 
 
 app.post('/address-search', authenticate, async (req, res, next) => {
