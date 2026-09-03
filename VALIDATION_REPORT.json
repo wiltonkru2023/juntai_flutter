@@ -1,0 +1,8 @@
+{
+  "dart_files": 148,
+  "screen_files": 25,
+  "missing_local_imports": [],
+  "simple_delimiter_issues": [],
+  "flutter_sdk_available": false,
+  "note": "Estrutura/imports validados. Compilacao real requer Flutter SDK, que nao esta instalado neste ambiente."
+}

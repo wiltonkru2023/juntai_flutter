@@ -1,0 +1,44 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function imageOk() {
+      return request.resource.size < 8 * 1024 * 1024
+          && request.resource.contentType.matches('image/.*');
+    }
+
+    // Avatar do usuário.
+    match /users/{uid}/{fileName} {
+      allow read: if signedIn();
+
+      allow write: if signedIn()
+                   && request.auth.uid == uid
+                   && imageOk();
+    }
+
+    // Por enquanto bloqueamos upload direto de capa de atividade.
+    // Vamos liberar somente para o criador quando conectarmos
+    // a criação de atividades ao Firestore.
+    match /activities/{activityId}/{fileName} {
+      allow read: if signedIn();
+      allow write: if false;
+    }
+
+    // Por enquanto bloqueamos mídia do chat.
+    // Depois liberaremos somente para participantes da atividade.
+    match /chat/{activityId}/{fileName} {
+      allow read: if signedIn();
+      allow write: if false;
+    }
+
+    // Tudo que não estiver explicitamente permitido fica bloqueado.
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

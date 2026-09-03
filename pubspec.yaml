@@ -1,0 +1,67 @@
+name: juntai
+version: 0.1.0+1
+publish_to: "none"
+description: Juntaí - encontre pessoas e atividades perto de você.
+
+environment:
+  sdk: ">=3.6.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_riverpod: any
+  go_router: any
+  intl: any
+  uuid: any
+  collection: any
+  google_fonts: any
+  flutter_svg: any
+  shimmer: any
+  firebase_core: any
+  firebase_auth: any
+  cloud_firestore: any
+  firebase_storage: any
+  firebase_messaging: any
+  firebase_analytics: any
+  firebase_crashlytics: any
+  firebase_app_check: any
+  google_sign_in: any
+  sign_in_with_apple: any
+  geolocator: any
+  geocoding: any
+  permission_handler: any
+  image_picker: any
+  cached_network_image: any
+  flutter_image_compress: any
+  flutter_secure_storage: any
+  shared_preferences: any
+  flutter_local_notifications: any
+  share_plus: any
+  app_links: any
+  url_launcher: any
+  timeago: any
+  connectivity_plus: any
+  package_info_plus: any
+  device_info_plus: any
+  http: ^1.6.0
+  flutter_map: ^8.3.2
+  latlong2: ^0.9.1
+  emoji_picker_flutter: ^4.4.0
+  record: ^6.2.1
+  audioplayers: ^6.8.1
+  path_provider: ^2.1.5
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  integration_test:
+    sdk: flutter
+  flutter_lints: any
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/branding/
+    - assets/illustrations/
+    - assets/placeholders/
+    - docs/mockups/

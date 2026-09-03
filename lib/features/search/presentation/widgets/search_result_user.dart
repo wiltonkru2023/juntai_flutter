@@ -1,0 +1,2 @@
+import 'package:flutter/material.dart'; import '../../../../core/widgets/app_avatar.dart';
+class SearchResultUser extends StatelessWidget{const SearchResultUser({super.key,required this.name,required this.city,this.onTap});final String name,city;final VoidCallback? onTap;@override Widget build(BuildContext context)=>ListTile(onTap:onTap,leading:AppAvatar(name:name),title:Text(name,style:const TextStyle(fontWeight:FontWeight.w700)),subtitle:Text(city),trailing:const Icon(Icons.chevron_right_rounded));}

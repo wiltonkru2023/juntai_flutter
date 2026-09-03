@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "941331616299",
+    "project_id": "juntai-f7605",
+    "storage_bucket": "juntai-f7605.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:941331616299:android:a5ff89d5ad63d6d5d4d06e",
+        "android_client_info": {
+          "package_name": "app.juntai.juntai"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "941331616299-8dpht1qo4atdhb1hkg1ngqvs1lu1nlj9.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "app.juntai.juntai",
+            "certificate_hash": "44c8ee542668fc702d28b1cf4f5e83680b5f537b"
+          }
+        },
+        {
+          "client_id": "941331616299-ddf5ovef3em8b6meabgejqqcq3a7rvpp.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCSlnSjYBMOhwopjhCUO4l8q3Wuqkf44zQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "941331616299-ddf5ovef3em8b6meabgejqqcq3a7rvpp.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

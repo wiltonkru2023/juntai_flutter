@@ -1,0 +1,76 @@
+# Flutter
+.dart_tool/
+build/
+.flutter-plugins
+.flutter-plugins-dependencies
+
+# IDE
+.idea/
+.vscode/
+
+# Secrets
+.env
+.env.*
+*.pem
+*.key
+serviceAccountKey.json
+google-services-private.json
+
+# Android
+android/key.properties
+*.jks
+*.keystore
+
+# Firebase / local
+.firebase/
+firebase-debug.log
+
+# Misc
+.DS_Store
+Thumbs.db
+
+# Node / Render backend
+**/node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+*.log
+
+# Flutter generated
+.packages
+.pub/
+.pub-cache/
+coverage/
+.flutter-plugins
+.flutter-plugins-dependencies
+
+# Android generated
+android/.gradle/
+android/local.properties
+android/app/debug/
+android/app/profile/
+android/app/release/
+
+# iOS generated
+ios/Pods/
+ios/.symlinks/
+ios/Flutter/ephemeral/
+
+# macOS generated
+macos/Pods/
+macos/Flutter/ephemeral/
+
+# Tool / AI local folders
+.agents/
+.claude/
+.codex/
+
+# Credentials / service accounts
+*service-account*.json
+*serviceAccount*.json
+credentials.json
+secrets.json
+# IntelliJ / Android Studio
+*.iml
+
+y/

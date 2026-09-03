@@ -1,0 +1,1 @@
+abstract class ModerationRepository { Future<void> reportUser(String userId,String reason,String? details); Future<void> reportActivity(String activityId,String reason,String? details); Future<void> blockUser(String userId); Future<void> unblockUser(String userId); }
