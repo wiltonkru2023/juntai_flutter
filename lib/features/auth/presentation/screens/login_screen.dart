@@ -1,12 +1,18 @@
+import 'dart:convert';
+import 'dart:math';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:crypto/crypto.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 
 import '../../../../app/theme/app_colors.dart';
 import '../../../../core/services/google_auth_service.dart';
+import '../../../../core/services/interest_service.dart';
 import '../../../../core/services/api_service.dart';
 import '../../../../core/services/notification_service.dart';
 import '../../../../core/services/username_service.dart';
@@ -160,6 +166,109 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     }
   }
 
+  String _generateNonce([int length = 32]) {
+    const charset =
+        '0123456789ABCDEFGHIJKLMNOPQRSTUVXYZabcdefghijklmnopqrstuvwxyz-._';
+    final random = Random.secure();
+
+    return List.generate(
+      length,
+      (_) => charset[random.nextInt(charset.length)],
+    ).join();
+  }
+
+  String _sha256(String input) => sha256.convert(utf8.encode(input)).toString();
+
+  Future<void> loginWithApple() async {
+    if (loading) return;
+
+    _setLoading(true, 'Conectando Ã  Apple...');
+
+    try {
+      final rawNonce = _generateNonce();
+      final apple = await SignInWithApple.getAppleIDCredential(
+        scopes: const [
+          AppleIDAuthorizationScopes.email,
+          AppleIDAuthorizationScopes.fullName,
+        ],
+        nonce: _sha256(rawNonce),
+      );
+
+      final identityToken = apple.identityToken;
+      if (identityToken == null || identityToken.isEmpty) {
+        throw const GoogleAuthServiceException(
+          'A Apple nÃ£o retornou um token de identidade.',
+        );
+      }
+
+      final appleCredential = OAuthProvider('apple.com').credential(
+        idToken: identityToken,
+        rawNonce: rawNonce,
+      );
+
+      UserCredential result;
+
+      try {
+        result =
+            await FirebaseAuth.instance.signInWithCredential(appleCredential);
+      } on FirebaseAuthException catch (error) {
+        if (error.code != 'account-exists-with-different-credential' ||
+            (error.email ?? '').isEmpty) {
+          rethrow;
+        }
+
+        result = await _linkExistingAccount(
+          error.email!,
+          appleCredential,
+        );
+      }
+
+      final user = result.user;
+
+      if (user == null) {
+        throw const GoogleAuthServiceException(
+          'NÃ£o foi possÃ­vel concluir o login com Apple.',
+        );
+      }
+
+      final fullName = [
+        apple.givenName,
+        apple.familyName,
+      ].whereType<String>().where((v) => v.trim().isNotEmpty).join(' ');
+
+      if ((user.displayName ?? '').trim().isEmpty && fullName.isNotEmpty) {
+        await user.updateDisplayName(fullName);
+      }
+
+      await _finishLogin(user);
+    } on SignInWithAppleAuthorizationException catch (error) {
+      if (!mounted) return;
+
+      if (error.code == AuthorizationErrorCode.canceled) {
+        return;
+      }
+
+      _message(
+        'NÃ£o foi possÃ­vel entrar com Apple. '
+        'Confira a configuraÃ§Ã£o do provedor.',
+      );
+    } on FirebaseAuthException catch (error) {
+      if (!mounted) return;
+
+      _message(
+        error.message ?? 'NÃ£o foi possÃ­vel entrar com Apple.',
+      );
+    } on GoogleAuthServiceException catch (error) {
+      if (!mounted) return;
+      _message(error.message);
+    } catch (_) {
+      if (!mounted) return;
+      _message('NÃ£o foi possÃ­vel entrar com Apple.');
+    } finally {
+      _setLoading(false);
+    }
+  }
+
   Future<UserCredential> _linkExistingAccount(
     String accountEmail,
     AuthCredential googleCredential,
@@ -282,6 +391,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       } else {
         await userRef.set(updates, SetOptions(merge: true));
       }
+    }
+
+    await InterestService.normalizeUser(user.uid);
+
+    try {
+      await ApiService.instance.syncSocialCounters();
+    } catch (_) {
+      // A sincronizaÃ§Ã£o Ã© corretiva e nÃ£o deve impedir o login.
     }
 
     await NotificationService.instance.syncTokenForCurrentUser();

@@ -129,9 +129,40 @@ async function isBlockedBy(targetUid, actorId) {
 }
 
 function shouldPush(type, preferences) {
-  if (type === 'new_message' || type === 'private_message') {
-    return preferences.chatNotifications !== false;
+  if (type === 'private_message' ||
+      type === 'new_direct_message') {
+    return preferences.directMessageNotifications !== false &&
+      preferences.chatNotifications !== false;
   }
+
+  if (type === 'new_message') {
+    return preferences.groupMessageNotifications !== false &&
+      preferences.chatNotifications !== false;
+  }
+
+  if (type === 'new_follower') {
+    return preferences.followerNotifications !== false;
+  }
+
+  if (type === 'activity_invite' ||
+      type === 'join_request') {
+    return preferences.inviteNotifications !== false;
+  }
+
+  if (type === 'business_new_post' ||
+      type === 'business_open_slots' ||
+      type === 'group_discount_unlocked') {
+    return preferences.businessNotifications !== false;
+  }
+
+  if (type === 'nearby_open_slots') {
+    return preferences.nearbyOpenSlotsNotifications !== false;
+  }
+
+  if (type === 'event_reminder') {
+    return preferences.eventReminderNotifications !== false;
+  }
+
   return preferences.activityNotifications !== false;
 }
 
@@ -183,6 +214,8 @@ async function notify(uid, data) {
     body: notificationData.body,
     activityId: notificationData.activityId || '',
     actorId: notificationData.actorId || '',
+    route: notificationData.route || '',
+    route: notificationData.route || '',
   };
 
   const invalidCodes = new Set([
@@ -291,7 +324,7 @@ app.post('/upload-image', authenticate, async (req, res, next) => {
     const requestedName = optionalString(req.body?.fileName, 160);
     const mimeType = optionalString(req.body?.mimeType, 80).toLowerCase();
 
-    if (!['profile', 'activity', 'chat', 'discovery'].includes(purpose)) {
+    if (!['profile', 'activity', 'chat', 'discovery', 'business'].includes(purpose)) {
       throw new ApiError(400, 'invalid-argument', 'Destino de imagem inválido.');
     }
 
@@ -1933,6 +1966,4566 @@ app.post('/notify-private-message', authenticate, async (req, res, next) => {
 });
 // ---- fim Juntaí v2 ----
 
+
+// JUNTAI_BLUEPRINT_V6
+
+const BP_PLANS = {
+  free: {
+    price: 0,
+    monthlyPostLimit: 1,
+    activePostLimit: 1,
+  },
+  local: {
+    price: 29.90,
+    monthlyPostLimit: 5,
+    activePostLimit: 5,
+  },
+  pro: {
+    price: 59.90,
+    monthlyPostLimit: 15,
+    activePostLimit: 15,
+  },
+  premium: {
+    price: 99.90,
+    monthlyPostLimit: 50,
+    activePostLimit: 50,
+  },
+};
+
+const BP_POST_TYPES =
+  new Set([
+    'experience',
+    'event',
+    'open_slots',
+    'promotion',
+    'schedule',
+  ]);
+
+const BP_BENEFIT_TYPES =
+  new Set([
+    'percentage_discount',
+    'fixed_discount',
+    'free_item',
+    'group_reward',
+    'special_price',
+    'priority_entry',
+  ]);
+
+const BP_REPORT_TYPES =
+  new Set([
+    'user',
+    'business',
+    'business_post',
+    'activity',
+    'direct_message',
+    'group_message',
+    'chat',
+  ]);
+
+function bpNumber(value, fallback = 0) {
+  const n = Number(value);
+  return Number.isFinite(n)
+    ? n
+    : fallback;
+}
+
+function bpUsername(value) {
+  const username =
+    String(value || '')
+      .trim()
+      .toLowerCase()
+      .replace(/^@+/, '');
+
+  if (username.length < 3 ||
+      username.length > 30 ||
+      !/^[a-z][a-z0-9_]*(\.[a-z0-9_]+)*$/
+        .test(username)) {
+    throw new ApiError(
+      400,
+      'invalid-username',
+      'Use letras, nÃºmeros, ponto ou _, comeÃ§ando por letra.',
+    );
+  }
+
+  return username;
+}
+
+function bpDayKey(date = new Date()) {
+  return date.toISOString().slice(0, 10);
+}
+
+async function bpMetric(
+  businessId,
+  field,
+  amount = 1,
+) {
+  if (!businessId ||
+      !field ||
+      !amount) {
+    return;
+  }
+
+  const businessRef =
+    db.collection('business_profiles')
+      .doc(businessId);
+
+  const dailyRef =
+    businessRef
+      .collection('metrics_daily')
+      .doc(bpDayKey());
+
+  const batch = db.batch();
+
+  batch.set(
+    dailyRef,
+    {
+      date: bpDayKey(),
+      [field]:
+        FieldValue.increment(amount),
+      updatedAt:
+        FieldValue.serverTimestamp(),
+    },
+    { merge: true },
+  );
+
+  if (field ===
+      'participantsGenerated') {
+    batch.set(
+      businessRef,
+      {
+        participantsGenerated:
+          FieldValue.increment(amount),
+        updatedAt:
+          FieldValue.serverTimestamp(),
+      },
+      { merge: true },
+    );
+  }
+
+  await batch.commit();
+}
+
+function bpBenefitCode() {
+  const chars =
+    'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+
+  let code = 'JUNTAI-';
+
+  for (let i = 0; i < 4; i += 1) {
+    code += chars[
+      Math.floor(
+        Math.random() * chars.length,
+      )
+    ];
+  }
+
+  return code;
+}
+
+async function bpCreateBenefit({
+  businessId,
+  postId = null,
+  activityId = null,
+  benefitType,
+  benefitValue,
+  benefitLabel,
+  participants = [],
+}) {
+  for (
+    let attempt = 0;
+    attempt < 10;
+    attempt += 1
+  ) {
+    const code = bpBenefitCode();
+
+    const ref =
+      db.collection('benefit_codes')
+        .doc(code);
+
+    if ((await ref.get()).exists) {
+      continue;
+    }
+
+    await ref.set({
+      code,
+      businessId,
+      postId,
+      activityId,
+      benefitType:
+        benefitType || 'group_reward',
+      benefitValue:
+        benefitValue ?? null,
+      benefitLabel:
+        benefitLabel ||
+        'BenefÃ­cio JuntaÃ­',
+      participantIds: participants,
+      participantCount:
+        participants.length,
+      status: 'active',
+      createdAt:
+        FieldValue.serverTimestamp(),
+      redeemedAt: null,
+      redeemedByBusinessId: null,
+    });
+
+    await bpMetric(
+      businessId,
+      'couponUnlocks',
+      1,
+    );
+
+    return code;
+  }
+
+  throw new ApiError(
+    500,
+    'code-generation-failed',
+    'NÃ£o foi possÃ­vel gerar o cÃ³digo.',
+  );
+}
+
+async function bpAdmin(
+  req,
+  _res,
+  next,
+) {
+  try {
+    if (req.user?.admin === true) {
+      return next();
+    }
+
+    const allowed =
+      String(
+        process.env.ADMIN_EMAILS || '',
+      )
+        .split(',')
+        .map((v) =>
+          v.trim().toLowerCase())
+        .filter(Boolean);
+
+    const email =
+      String(req.user?.email || '')
+        .toLowerCase();
+
+    if (email &&
+        allowed.includes(email)) {
+      return next();
+    }
+
+    throw new ApiError(
+      403,
+      'admin-required',
+      'Acesso administrativo necessÃ¡rio.',
+    );
+  } catch (error) {
+    next(error);
+  }
+}
+
+async function bpPayment({
+  title,
+  price,
+  externalReference,
+}) {
+  const token =
+    String(
+      process.env
+        .MERCADO_PAGO_ACCESS_TOKEN ||
+        '',
+    ).trim();
+
+  if (!token) {
+    throw new ApiError(
+      503,
+      'payment-not-configured',
+      'Configure MERCADO_PAGO_ACCESS_TOKEN no Render.',
+    );
+  }
+
+  const publicApi =
+    String(
+      process.env.PUBLIC_API_URL ||
+      'https://juntai-flutter.onrender.com',
+    ).replace(/\/+$/, '');
+
+  const response =
+    await fetch(
+      'https://api.mercadopago.com/checkout/preferences',
+      {
+        method: 'POST',
+        headers: {
+          Authorization:
+            `Bearer ${token}`,
+          'Content-Type':
+            'application/json',
+        },
+        body: JSON.stringify({
+          items: [{
+            id: externalReference,
+            title,
+            quantity: 1,
+            currency_id: 'BRL',
+            unit_price:
+              Number(price),
+          }],
+          external_reference:
+            externalReference,
+          notification_url:
+            `${publicApi}/blueprint/mercadopago/webhook`,
+          back_urls: {
+            success:
+              `${publicApi}/payment/success`,
+            pending:
+              `${publicApi}/payment/pending`,
+            failure:
+              `${publicApi}/payment/failure`,
+          },
+          auto_return: 'approved',
+        }),
+      },
+    );
+
+  const payload =
+    await response
+      .json()
+      .catch(() => ({}));
+
+  if (!response.ok ||
+      !payload.init_point) {
+    console.error(
+      'Mercado Pago:',
+      response.status,
+      payload,
+    );
+
+    throw new ApiError(
+      502,
+      'payment-provider-error',
+      'NÃ£o foi possÃ­vel iniciar o pagamento.',
+    );
+  }
+
+  return payload.init_point;
+}
+
+async function bpNotifyFollowers(
+  businessId,
+  post,
+) {
+  const followers =
+    await db
+      .collection('business_profiles')
+      .doc(businessId)
+      .collection('followers')
+      .get();
+
+  const type =
+    post.type === 'open_slots' ||
+    post.type === 'schedule'
+      ? 'business_open_slots'
+      : 'business_new_post';
+
+  await Promise.allSettled(
+    followers.docs.map(
+      async (follower) => {
+        const preferences =
+          follower.data() || {};
+
+        if (post.type === 'event' &&
+            preferences.notifyEvents ===
+              false) {
+          return;
+        }
+
+        if ((post.type ===
+              'open_slots' ||
+             post.type ===
+              'schedule') &&
+            preferences
+              .notifyOpenSlots ===
+              false) {
+          return;
+        }
+
+        if (post.benefitType &&
+            preferences
+              .notifyBenefits ===
+              false) {
+          return;
+        }
+
+        if (type ===
+              'business_new_post' &&
+            preferences.notifyPosts ===
+              false) {
+          return;
+        }
+
+        await notify(
+          follower.id,
+          {
+            type,
+            title:
+              String(
+                post.businessName ||
+                'Novidade no JuntaÃ­',
+              ),
+            body:
+              String(
+                post.title ||
+                'Nova publicaÃ§Ã£o',
+              ),
+            route:
+              `/discovery/${post.id}`,
+          },
+        );
+      },
+    ),
+  );
+}
+
+app.post(
+  '/blueprint/change-username',
+  authenticate,
+  async (req, res, next) => {
+    try {
+      const uid = req.user.uid;
+
+      const username =
+        bpUsername(
+          req.body?.username,
+        );
+
+      const userRef =
+        db.collection('users')
+          .doc(uid);
+
+      const newRef =
+        db.collection('usernames')
+          .doc(username);
+
+      await db.runTransaction(
+        async (transaction) => {
+          const user =
+            await transaction
+              .get(userRef);
+
+          if (!user.exists) {
+            throw new ApiError(
+              404,
+              'user-not-found',
+              'Perfil nÃ£o encontrado.',
+            );
+          }
+
+          const target =
+            await transaction
+              .get(newRef);
+
+          if (target.exists &&
+              String(
+                target.data()?.uid ||
+                '',
+              ) !== uid) {
+            throw new ApiError(
+              409,
+              'username-taken',
+              'Este @usuÃ¡rio jÃ¡ estÃ¡ em uso.',
+            );
+          }
+
+          const old =
+            String(
+              user.data()?.username ||
+              '',
+            ).toLowerCase();
+
+          if (old === username) {
+            return;
+          }
+
+          transaction.set(
+            newRef,
+            {
+              uid,
+              createdAt:
+                target.data()
+                  ?.createdAt ||
+                FieldValue
+                  .serverTimestamp(),
+            },
+          );
+
+          transaction.update(
+            userRef,
+            {
+              username,
+              usernameLower:
+                username,
+              updatedAt:
+                FieldValue
+                  .serverTimestamp(),
+            },
+          );
+
+          if (old) {
+            const oldRef =
+              db.collection('usernames')
+                .doc(old);
+
+            const oldDoc =
+              await transaction
+                .get(oldRef);
+
+            if (oldDoc.exists &&
+                String(
+                  oldDoc.data()?.uid ||
+                  '',
+                ) === uid) {
+              transaction.delete(
+                oldRef,
+              );
+            }
+          }
+        },
+      );
+
+      res.json({
+        ok: true,
+        username,
+      });
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+app.post(
+  '/blueprint/sync-social-counters',
+  authenticate,
+  async (req, res, next) => {
+    try {
+      const uid = req.user.uid;
+
+      const userRef =
+        db.collection('users')
+          .doc(uid);
+
+      const [
+        followers,
+        following,
+      ] = await Promise.all([
+        userRef
+          .collection('followers')
+          .count()
+          .get(),
+        userRef
+          .collection('following')
+          .count()
+          .get(),
+      ]);
+
+      await userRef.set(
+        {
+          followersCount:
+            followers.data().count,
+          followingCount:
+            following.data().count,
+          updatedAt:
+            FieldValue
+              .serverTimestamp(),
+        },
+        { merge: true },
+      );
+
+      res.json({
+        ok: true,
+        followersCount:
+          followers.data().count,
+        followingCount:
+          following.data().count,
+      });
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+app.post(
+  '/blueprint/follow-user',
+  authenticate,
+  async (req, res, next) => {
+    try {
+      const uid = req.user.uid;
+
+      const targetUid =
+        requiredString(
+          req.body?.userId,
+          'userId',
+          200,
+        );
+
+      const follow =
+        req.body?.follow === true;
+
+      if (uid === targetUid) {
+        throw new ApiError(
+          400,
+          'invalid-target',
+          'VocÃª nÃ£o pode seguir a si mesmo.',
+        );
+      }
+
+      if (await blockedEither(
+        uid,
+        targetUid,
+      )) {
+        throw new ApiError(
+          403,
+          'blocked',
+          'AÃ§Ã£o indisponÃ­vel entre usuÃ¡rios bloqueados.',
+        );
+      }
+
+      const myRef =
+        db.collection('users')
+          .doc(uid);
+
+      const targetRef =
+        db.collection('users')
+          .doc(targetUid);
+
+      const followingRef =
+        myRef
+          .collection('following')
+          .doc(targetUid);
+
+      const followerRef =
+        targetRef
+          .collection('followers')
+          .doc(uid);
+
+      let changed = false;
+
+      await db.runTransaction(
+        async (transaction) => {
+          const target =
+            await transaction
+              .get(targetRef);
+
+          if (!target.exists) {
+            throw new ApiError(
+              404,
+              'not-found',
+              'UsuÃ¡rio nÃ£o encontrado.',
+            );
+          }
+
+          const relation =
+            await transaction
+              .get(followingRef);
+
+          if (follow &&
+              !relation.exists) {
+            transaction.set(
+              followingRef,
+              {
+                userId: targetUid,
+                createdAt:
+                  FieldValue
+                    .serverTimestamp(),
+              },
+            );
+
+            transaction.set(
+              followerRef,
+              {
+                userId: uid,
+                createdAt:
+                  FieldValue
+                    .serverTimestamp(),
+              },
+            );
+
+            transaction.set(
+              myRef,
+              {
+                followingCount:
+                  FieldValue
+                    .increment(1),
+                updatedAt:
+                  FieldValue
+                    .serverTimestamp(),
+              },
+              { merge: true },
+            );
+
+            transaction.set(
+              targetRef,
+              {
+                followersCount:
+                  FieldValue
+                    .increment(1),
+                updatedAt:
+                  FieldValue
+                    .serverTimestamp(),
+              },
+              { merge: true },
+            );
+
+            changed = true;
+          }
+
+          if (!follow &&
+              relation.exists) {
+            transaction.delete(
+              followingRef,
+            );
+
+            transaction.delete(
+              followerRef,
+            );
+
+            transaction.set(
+              myRef,
+              {
+                followingCount:
+                  FieldValue
+                    .increment(-1),
+                updatedAt:
+                  FieldValue
+                    .serverTimestamp(),
+              },
+              { merge: true },
+            );
+
+            transaction.set(
+              targetRef,
+              {
+                followersCount:
+                  FieldValue
+                    .increment(-1),
+                updatedAt:
+                  FieldValue
+                    .serverTimestamp(),
+              },
+              { merge: true },
+            );
+
+            changed = true;
+          }
+        },
+      );
+
+      if (changed && follow) {
+        const me =
+          await userData(uid);
+
+        await notify(
+          targetUid,
+          {
+            type:
+              'new_follower',
+            title:
+              `@${String(
+                me.username ||
+                'alguÃ©m',
+              )} comeÃ§ou a seguir vocÃª`,
+            body:
+              String(me.name || ''),
+            actorId: uid,
+            route:
+              `/profile/user/${uid}`,
+          },
+        );
+      }
+
+      res.json({
+        ok: true,
+        following: follow,
+        changed,
+      });
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+app.post(
+  '/blueprint/create-business',
+  authenticate,
+  async (req, res, next) => {
+    try {
+      const uid = req.user.uid;
+
+      const ref =
+        db.collection('business_profiles')
+          .doc(uid);
+
+      if ((await ref.get()).exists) {
+        throw new ApiError(
+          409,
+          'already-exists',
+          'VocÃª jÃ¡ possui perfil comercial.',
+        );
+      }
+
+      const username =
+        bpUsername(
+          req.body?.username,
+        );
+
+      const usernameRef =
+        db.collection(
+          'business_usernames',
+        ).doc(username);
+
+      const latitude =
+        bpNumber(
+          req.body?.latitude,
+          NaN,
+        );
+
+      const longitude =
+        bpNumber(
+          req.body?.longitude,
+          NaN,
+        );
+
+      if (!Number.isFinite(latitude) ||
+          !Number.isFinite(longitude)) {
+        throw new ApiError(
+          400,
+          'invalid-location',
+          'LocalizaÃ§Ã£o invÃ¡lida.',
+        );
+      }
+
+      const accountType =
+        optionalString(
+          req.body?.accountType,
+          30,
+        ) || 'business';
+
+      if (![
+        'business',
+        'organizer',
+        'institution',
+      ].includes(accountType)) {
+        throw new ApiError(
+          400,
+          'invalid-account-type',
+          'Tipo de conta comercial invÃ¡lido.',
+        );
+      }
+
+      await db.runTransaction(
+        async (transaction) => {
+          const reserved =
+            await transaction
+              .get(usernameRef);
+
+          if (reserved.exists) {
+            throw new ApiError(
+              409,
+              'business-username-taken',
+              'Este @comercial jÃ¡ estÃ¡ em uso.',
+            );
+          }
+
+          transaction.set(
+            usernameRef,
+            {
+              businessId: uid,
+              ownerUid: uid,
+              createdAt:
+                FieldValue
+                  .serverTimestamp(),
+            },
+          );
+
+          transaction.set(
+            ref,
+            {
+              businessId: uid,
+              ownerId: uid,
+              ownerUid: uid,
+              name:
+                requiredString(
+                  req.body?.name,
+                  'name',
+                  80,
+                ),
+              username,
+              category:
+                requiredString(
+                  req.body?.category,
+                  'category',
+                  60,
+                ),
+              description:
+                optionalString(
+                  req.body?.description,
+                  1200,
+                ),
+              photoUrl:
+                optionalString(
+                  req.body?.photoUrl,
+                  2048,
+                ) || null,
+              coverUrl:
+                optionalString(
+                  req.body?.coverUrl,
+                  2048,
+                ) || null,
+              galleryUrls:
+                Array.isArray(
+                  req.body?.galleryUrls,
+                )
+                  ? req.body.galleryUrls
+                      .map((v) =>
+                        optionalString(
+                          v,
+                          2048,
+                        ))
+                      .filter(Boolean)
+                      .slice(0, 8)
+                  : [],
+              city:
+                requiredString(
+                  req.body?.city,
+                  'city',
+                  80,
+                ),
+              state:
+                requiredString(
+                  req.body?.state,
+                  'state',
+                  40,
+                ),
+              address:
+                requiredString(
+                  req.body?.address,
+                  'address',
+                  250,
+                ),
+              latitude,
+              longitude,
+              phone:
+                optionalString(
+                  req.body?.phone,
+                  40,
+                ),
+              websiteUrl:
+                optionalString(
+                  req.body?.websiteUrl,
+                  500,
+                ),
+              instagram:
+                optionalString(
+                  req.body?.instagram,
+                  100,
+                ),
+              accountType,
+              institutionType:
+                optionalString(
+                  req.body
+                    ?.institutionType,
+                  100,
+                ),
+              verified: false,
+              followersCount: 0,
+              participantsGenerated: 0,
+              profileVisits: 0,
+              rating: 0,
+              reviewStatus: 'pending',
+              status: 'active',
+              plan: 'free',
+              monthlyPostLimit:
+                BP_PLANS.free
+                  .monthlyPostLimit,
+              activePostLimit:
+                BP_PLANS.free
+                  .activePostLimit,
+              postsUsedThisMonth: 0,
+              usageMonth:
+                usageMonthKey(),
+              billingPeriodStart: null,
+              billingPeriodEnd: null,
+              createdAt:
+                FieldValue
+                  .serverTimestamp(),
+              updatedAt:
+                FieldValue
+                  .serverTimestamp(),
+            },
+          );
+        },
+      );
+
+      res.json({
+        ok: true,
+        businessId: uid,
+        username,
+      });
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+app.post(
+  '/blueprint/update-business',
+  authenticate,
+  async (req, res, next) => {
+    try {
+      const uid = req.user.uid;
+
+      const ref =
+        db.collection('business_profiles')
+          .doc(uid);
+
+      const current =
+        await ref.get();
+
+      if (!current.exists) {
+        throw new ApiError(
+          404,
+          'not-found',
+          'Perfil comercial nÃ£o encontrado.',
+        );
+      }
+
+      const old =
+        current.data() || {};
+
+      const oldUsername =
+        String(old.username || '');
+
+      const username =
+        bpUsername(
+          req.body?.username ||
+          oldUsername,
+        );
+
+      await db.runTransaction(
+        async (transaction) => {
+          if (username !==
+              oldUsername) {
+            const newRef =
+              db.collection(
+                'business_usernames',
+              ).doc(username);
+
+            const reserved =
+              await transaction
+                .get(newRef);
+
+            if (reserved.exists) {
+              throw new ApiError(
+                409,
+                'business-username-taken',
+                'Este @comercial jÃ¡ estÃ¡ em uso.',
+              );
+            }
+
+            transaction.set(
+              newRef,
+              {
+                businessId: uid,
+                ownerUid: uid,
+                createdAt:
+                  FieldValue
+                    .serverTimestamp(),
+              },
+            );
+
+            if (oldUsername) {
+              transaction.delete(
+                db.collection(
+                  'business_usernames',
+                ).doc(oldUsername),
+              );
+            }
+          }
+
+          const criticalChanged =
+            String(old.name || '') !==
+              String(
+                req.body?.name || '',
+              ) ||
+            String(
+              old.category || '',
+            ) !==
+              String(
+                req.body?.category ||
+                '',
+              ) ||
+            String(
+              old.address || '',
+            ) !==
+              String(
+                req.body?.address ||
+                '',
+              ) ||
+            String(old.city || '') !==
+              String(
+                req.body?.city || '',
+              ) ||
+            String(old.state || '') !==
+              String(
+                req.body?.state || '',
+              );
+
+          transaction.update(
+            ref,
+            {
+              name:
+                requiredString(
+                  req.body?.name,
+                  'name',
+                  80,
+                ),
+              username,
+              category:
+                requiredString(
+                  req.body?.category,
+                  'category',
+                  60,
+                ),
+              description:
+                optionalString(
+                  req.body?.description,
+                  1200,
+                ),
+              photoUrl:
+                optionalString(
+                  req.body?.photoUrl,
+                  2048,
+                ) || null,
+              coverUrl:
+                optionalString(
+                  req.body?.coverUrl,
+                  2048,
+                ) || null,
+              galleryUrls:
+                Array.isArray(
+                  req.body?.galleryUrls,
+                )
+                  ? req.body.galleryUrls
+                      .map((v) =>
+                        optionalString(
+                          v,
+                          2048,
+                        ))
+                      .filter(Boolean)
+                      .slice(0, 8)
+                  : [],
+              city:
+                requiredString(
+                  req.body?.city,
+                  'city',
+                  80,
+                ),
+              state:
+                requiredString(
+                  req.body?.state,
+                  'state',
+                  40,
+                ),
+              address:
+                requiredString(
+                  req.body?.address,
+                  'address',
+                  250,
+                ),
+              latitude:
+                bpNumber(
+                  req.body?.latitude,
+                  old.latitude,
+                ),
+              longitude:
+                bpNumber(
+                  req.body?.longitude,
+                  old.longitude,
+                ),
+              phone:
+                optionalString(
+                  req.body?.phone,
+                  40,
+                ),
+              websiteUrl:
+                optionalString(
+                  req.body?.websiteUrl,
+                  500,
+                ),
+              instagram:
+                optionalString(
+                  req.body?.instagram,
+                  100,
+                ),
+              accountType:
+                optionalString(
+                  req.body?.accountType,
+                  30,
+                ) ||
+                old.accountType ||
+                'business',
+              institutionType:
+                optionalString(
+                  req.body
+                    ?.institutionType,
+                  100,
+                ),
+              ...(criticalChanged
+                ? {
+                    verified: false,
+                    reviewStatus:
+                      'pending',
+                  }
+                : {}),
+              updatedAt:
+                FieldValue
+                  .serverTimestamp(),
+            },
+          );
+        },
+      );
+
+      res.json({
+        ok: true,
+        username,
+      });
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+app.post(
+  '/blueprint/follow-business',
+  authenticate,
+  async (req, res, next) => {
+    try {
+      const uid = req.user.uid;
+
+      const businessId =
+        requiredString(
+          req.body?.businessId,
+          'businessId',
+          200,
+        );
+
+      const follow =
+        req.body?.follow === true;
+
+      const businessRef =
+        db.collection('business_profiles')
+          .doc(businessId);
+
+      const followerRef =
+        businessRef
+          .collection('followers')
+          .doc(uid);
+
+      let changed = false;
+
+      await db.runTransaction(
+        async (transaction) => {
+          const business =
+            await transaction
+              .get(businessRef);
+
+          if (!business.exists) {
+            throw new ApiError(
+              404,
+              'not-found',
+              'ComÃ©rcio nÃ£o encontrado.',
+            );
+          }
+
+          const relation =
+            await transaction
+              .get(followerRef);
+
+          if (follow &&
+              !relation.exists) {
+            transaction.set(
+              followerRef,
+              {
+                userId: uid,
+                notifyPosts: true,
+                notifyEvents: true,
+                notifyOpenSlots: true,
+                notifyBenefits: true,
+                createdAt:
+                  FieldValue
+                    .serverTimestamp(),
+              },
+            );
+
+            transaction.update(
+              businessRef,
+              {
+                followersCount:
+                  FieldValue
+                    .increment(1),
+                updatedAt:
+                  FieldValue
+                    .serverTimestamp(),
+              },
+            );
+
+            changed = true;
+          }
+
+          if (!follow &&
+              relation.exists) {
+            transaction.delete(
+              followerRef,
+            );
+
+            transaction.update(
+              businessRef,
+              {
+                followersCount:
+                  FieldValue
+                    .increment(-1),
+                updatedAt:
+                  FieldValue
+                    .serverTimestamp(),
+              },
+            );
+
+            changed = true;
+          }
+        },
+      );
+
+      if (changed && follow) {
+        await bpMetric(
+          businessId,
+          'followersGained',
+          1,
+        );
+      }
+
+      res.json({
+        ok: true,
+        following: follow,
+        changed,
+      });
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+app.post(
+  '/blueprint/business-follow-preferences',
+  authenticate,
+  async (req, res, next) => {
+    try {
+      const uid = req.user.uid;
+
+      const businessId =
+        requiredString(
+          req.body?.businessId,
+          'businessId',
+          200,
+        );
+
+      const ref =
+        db.collection('business_profiles')
+          .doc(businessId)
+          .collection('followers')
+          .doc(uid);
+
+      if (!(await ref.get()).exists) {
+        throw new ApiError(
+          412,
+          'not-following',
+          'Siga o comÃ©rcio primeiro.',
+        );
+      }
+
+      await ref.update({
+        notifyPosts:
+          req.body?.notifyPosts !==
+          false,
+        notifyEvents:
+          req.body?.notifyEvents !==
+          false,
+        notifyOpenSlots:
+          req.body
+            ?.notifyOpenSlots !==
+          false,
+        notifyBenefits:
+          req.body
+            ?.notifyBenefits !==
+          false,
+        updatedAt:
+          FieldValue
+            .serverTimestamp(),
+      });
+
+      res.json({ ok: true });
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+app.post(
+  '/blueprint/create-post',
+  authenticate,
+  async (req, res, next) => {
+    try {
+      const uid = req.user.uid;
+
+      const businessRef =
+        db.collection('business_profiles')
+          .doc(uid);
+
+      const business =
+        await businessRef.get();
+
+      if (!business.exists) {
+        throw new ApiError(
+          412,
+          'business-required',
+          'Crie seu perfil comercial.',
+        );
+      }
+
+      const b =
+        business.data() || {};
+
+      if (b.reviewStatus !==
+            'approved' ||
+          b.status !== 'active') {
+        throw new ApiError(
+          403,
+          'business-not-approved',
+          'Seu perfil precisa estar aprovado e ativo.',
+        );
+      }
+
+      const type =
+        optionalString(
+          req.body?.type,
+          30,
+        ) || 'experience';
+
+      if (!BP_POST_TYPES.has(type)) {
+        throw new ApiError(
+          400,
+          'invalid-type',
+          'Tipo de publicaÃ§Ã£o invÃ¡lido.',
+        );
+      }
+
+      const month =
+        usageMonthKey();
+
+      const used =
+        String(
+          b.usageMonth || '',
+        ) === month
+          ? Math.max(
+              Number(
+                b.postsUsedThisMonth ||
+                0,
+              ),
+              0,
+            )
+          : 0;
+
+      const monthlyLimit =
+        Math.max(
+          Number(
+            b.monthlyPostLimit ||
+            1,
+          ),
+          1,
+        );
+
+      if (used >= monthlyLimit) {
+        throw new ApiError(
+          409,
+          'monthly-plan-limit',
+          'Seu plano atingiu o limite mensal.',
+        );
+      }
+
+      const active =
+        await db
+          .collection('discoveries')
+          .where(
+            'businessId',
+            '==',
+            uid,
+          )
+          .where(
+            'status',
+            '==',
+            'published',
+          )
+          .get();
+
+      if (active.size >=
+          Math.max(
+            Number(
+              b.activePostLimit ||
+              1,
+            ),
+            1,
+          )) {
+        throw new ApiError(
+          409,
+          'active-plan-limit',
+          'Seu plano atingiu o limite de publicaÃ§Ãµes ativas.',
+        );
+      }
+
+      const startsAt =
+        req.body?.eventStartsAt
+          ? parseDate(
+              req.body.eventStartsAt,
+              'eventStartsAt',
+            )
+          : null;
+
+      const endsAt =
+        req.body?.eventEndsAt
+          ? parseDate(
+              req.body.eventEndsAt,
+              'eventEndsAt',
+            )
+          : null;
+
+      if (startsAt &&
+          endsAt &&
+          endsAt <= startsAt) {
+        throw new ApiError(
+          400,
+          'invalid-date',
+          'O fim precisa ser depois do inÃ­cio.',
+        );
+      }
+
+      const minParticipants =
+        Math.max(
+          0,
+          Math.trunc(
+            bpNumber(
+              req.body
+                ?.minParticipants,
+              0,
+            ),
+          ),
+        );
+
+      const maxParticipants =
+        Math.max(
+          0,
+          Math.trunc(
+            bpNumber(
+              req.body
+                ?.maxParticipants,
+              0,
+            ),
+          ),
+        );
+
+      if ((type === 'open_slots' ||
+           type === 'schedule') &&
+          (maxParticipants < 2 ||
+           minParticipants < 1 ||
+           minParticipants >
+             maxParticipants)) {
+        throw new ApiError(
+          400,
+          'invalid-capacity',
+          'Capacidade invÃ¡lida.',
+        );
+      }
+
+      const benefitType =
+        optionalString(
+          req.body?.benefitType,
+          40,
+        ) || null;
+
+      if (benefitType &&
+          !BP_BENEFIT_TYPES
+            .has(benefitType)) {
+        throw new ApiError(
+          400,
+          'invalid-benefit',
+          'BenefÃ­cio invÃ¡lido.',
+        );
+      }
+
+      const postRef =
+        db.collection('discoveries')
+          .doc();
+
+      const post = {
+        id: postRef.id,
+        businessId: uid,
+        businessName:
+          String(b.name || ''),
+        businessCategory:
+          String(b.category || ''),
+        businessVerified:
+          b.verified === true,
+        type,
+        title:
+          requiredString(
+            req.body?.title,
+            'title',
+            120,
+          ),
+        description:
+          requiredString(
+            req.body?.description,
+            'description',
+            1500,
+          ),
+        coverUrl:
+          requiredString(
+            req.body?.coverUrl,
+            'coverUrl',
+            2048,
+          ),
+        galleryUrls:
+          Array.isArray(
+            req.body?.galleryUrls,
+          )
+            ? req.body.galleryUrls
+                .map((v) =>
+                  optionalString(
+                    v,
+                    2048,
+                  ))
+                .filter(Boolean)
+                .slice(0, 6)
+            : [],
+        address:
+          String(b.address || ''),
+        latitude:
+          Number(b.latitude || 0),
+        longitude:
+          Number(b.longitude || 0),
+        websiteUrl:
+          String(
+            b.websiteUrl || '',
+          ),
+        ctaLabel:
+          optionalString(
+            req.body?.ctaLabel,
+            50,
+          ) ||
+          (type === 'open_slots'
+            ? 'Eu vou'
+            : 'Criar atividade aqui'),
+        officialEvent:
+          req.body?.officialEvent ===
+            true ||
+          type === 'event',
+        eventStartsAt:
+          startsAt
+            ? Timestamp.fromDate(
+                startsAt,
+              )
+            : null,
+        eventEndsAt:
+          endsAt
+            ? Timestamp.fromDate(
+                endsAt,
+              )
+            : null,
+        price:
+          req.body?.price == null
+            ? null
+            : bpNumber(
+                req.body.price,
+                null,
+              ),
+        juntaiPrice:
+          req.body?.juntaiPrice ==
+            null
+            ? null
+            : bpNumber(
+                req.body
+                  .juntaiPrice,
+                null,
+              ),
+        minParticipants,
+        maxParticipants,
+        claimedParticipants: 0,
+        benefitType,
+        benefitValue:
+          req.body?.benefitValue ==
+            null
+            ? null
+            : bpNumber(
+                req.body
+                  .benefitValue,
+                null,
+              ),
+        benefitMinParticipants:
+          Math.max(
+            0,
+            Math.trunc(
+              bpNumber(
+                req.body
+                  ?.benefitMinParticipants,
+                0,
+              ),
+            ),
+          ),
+        groupBenefit:
+          optionalString(
+            req.body?.groupBenefit,
+            400,
+          ),
+        benefitUnlocked: false,
+        benefitCode: null,
+        availabilitySlots:
+          Array.isArray(
+            req.body
+              ?.availabilitySlots,
+          )
+            ? req.body
+                .availabilitySlots
+                .slice(0, 20)
+                .map((slot) => ({
+                  label:
+                    optionalString(
+                      slot?.label,
+                      40,
+                    ),
+                  capacity:
+                    Math.max(
+                      1,
+                      Math.trunc(
+                        bpNumber(
+                          slot?.capacity,
+                          maxParticipants ||
+                            1,
+                        ),
+                      ),
+                    ),
+                  claimed: 0,
+                }))
+                .filter(
+                  (slot) =>
+                    slot.label,
+                )
+            : [],
+        sponsored: false,
+        sponsoredUntil: null,
+        sponsoredCity: null,
+        status: 'published',
+        views: 0,
+        opens: 0,
+        profileVisits: 0,
+        wantToGoClicks: 0,
+        interestedCount: 0,
+        shareCount: 0,
+        activitiesCreated: 0,
+        groupsCreated: 0,
+        participantsGenerated: 0,
+        couponUnlocks: 0,
+        couponValidations: 0,
+        slotsFilled: 0,
+        createdAt:
+          FieldValue
+            .serverTimestamp(),
+        updatedAt:
+          FieldValue
+            .serverTimestamp(),
+      };
+
+      await db.runTransaction(
+        async (transaction) => {
+          transaction.set(
+            postRef,
+            post,
+          );
+
+          transaction.update(
+            businessRef,
+            {
+              postsUsedThisMonth:
+                used + 1,
+              usageMonth: month,
+              updatedAt:
+                FieldValue
+                  .serverTimestamp(),
+            },
+          );
+        },
+      );
+
+      await bpNotifyFollowers(
+        uid,
+        post,
+      ).catch(console.error);
+
+      res.json({
+        ok: true,
+        postId: postRef.id,
+      });
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+app.post(
+  '/blueprint/update-post',
+  authenticate,
+  async (req, res, next) => {
+    try {
+      const uid = req.user.uid;
+
+      const postId =
+        requiredString(
+          req.body?.postId,
+          'postId',
+          200,
+        );
+
+      const ref =
+        db.collection('discoveries')
+          .doc(postId);
+
+      const snapshot =
+        await ref.get();
+
+      if (!snapshot.exists) {
+        throw new ApiError(
+          404,
+          'not-found',
+          'PublicaÃ§Ã£o nÃ£o encontrada.',
+        );
+      }
+
+      const current =
+        snapshot.data() || {};
+
+      if (String(
+            current.businessId ||
+            '',
+          ) !== uid) {
+        throw new ApiError(
+          403,
+          'permission-denied',
+          'Sem permissÃ£o.',
+        );
+      }
+
+      const startsAt =
+        req.body?.eventStartsAt
+          ? parseDate(
+              req.body.eventStartsAt,
+              'eventStartsAt',
+            )
+          : null;
+
+      const endsAt =
+        req.body?.eventEndsAt
+          ? parseDate(
+              req.body.eventEndsAt,
+              'eventEndsAt',
+            )
+          : null;
+
+      await ref.update({
+        title:
+          requiredString(
+            req.body?.title,
+            'title',
+            120,
+          ),
+        description:
+          requiredString(
+            req.body?.description,
+            'description',
+            1500,
+          ),
+        coverUrl:
+          requiredString(
+            req.body?.coverUrl,
+            'coverUrl',
+            2048,
+          ),
+        galleryUrls:
+          Array.isArray(
+            req.body?.galleryUrls,
+          )
+            ? req.body.galleryUrls
+                .map((v) =>
+                  optionalString(
+                    v,
+                    2048,
+                  ))
+                .filter(Boolean)
+                .slice(0, 6)
+            : current.galleryUrls ||
+              [],
+        ctaLabel:
+          optionalString(
+            req.body?.ctaLabel,
+            50,
+          ) ||
+          current.ctaLabel,
+        officialEvent:
+          req.body?.officialEvent ===
+            true ||
+          current.type === 'event',
+        eventStartsAt:
+          startsAt
+            ? Timestamp.fromDate(
+                startsAt,
+              )
+            : current.eventStartsAt ||
+              null,
+        eventEndsAt:
+          endsAt
+            ? Timestamp.fromDate(
+                endsAt,
+              )
+            : current.eventEndsAt ||
+              null,
+        price:
+          req.body?.price == null
+            ? null
+            : bpNumber(
+                req.body.price,
+                null,
+              ),
+        juntaiPrice:
+          req.body?.juntaiPrice ==
+            null
+            ? null
+            : bpNumber(
+                req.body
+                  .juntaiPrice,
+                null,
+              ),
+        minParticipants:
+          Math.max(
+            0,
+            Math.trunc(
+              bpNumber(
+                req.body
+                  ?.minParticipants,
+                current
+                  .minParticipants ||
+                  0,
+              ),
+            ),
+          ),
+        maxParticipants:
+          Math.max(
+            0,
+            Math.trunc(
+              bpNumber(
+                req.body
+                  ?.maxParticipants,
+                current
+                  .maxParticipants ||
+                  0,
+              ),
+            ),
+          ),
+        benefitType:
+          optionalString(
+            req.body?.benefitType,
+            40,
+          ) || null,
+        benefitValue:
+          req.body?.benefitValue ==
+            null
+            ? null
+            : bpNumber(
+                req.body
+                  .benefitValue,
+                null,
+              ),
+        benefitMinParticipants:
+          Math.max(
+            0,
+            Math.trunc(
+              bpNumber(
+                req.body
+                  ?.benefitMinParticipants,
+                current
+                  .benefitMinParticipants ||
+                  0,
+              ),
+            ),
+          ),
+        groupBenefit:
+          optionalString(
+            req.body?.groupBenefit,
+            400,
+          ),
+        availabilitySlots:
+          Array.isArray(
+            req.body
+              ?.availabilitySlots,
+          )
+            ? req.body
+                .availabilitySlots
+                .slice(0, 20)
+                .map((slot) => ({
+                  label:
+                    optionalString(
+                      slot?.label,
+                      40,
+                    ),
+                  capacity:
+                    Math.max(
+                      1,
+                      Math.trunc(
+                        bpNumber(
+                          slot?.capacity,
+                          1,
+                        ),
+                      ),
+                    ),
+                  claimed:
+                    Math.max(
+                      0,
+                      Math.trunc(
+                        bpNumber(
+                          slot?.claimed,
+                          0,
+                        ),
+                      ),
+                    ),
+                }))
+                .filter(
+                  (slot) =>
+                    slot.label,
+                )
+            : current
+                .availabilitySlots ||
+              [],
+        updatedAt:
+          FieldValue
+            .serverTimestamp(),
+      });
+
+      res.json({
+        ok: true,
+        postId,
+      });
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+app.post(
+  '/blueprint/archive-post',
+  authenticate,
+  async (req, res, next) => {
+    try {
+      const uid = req.user.uid;
+
+      const postId =
+        requiredString(
+          req.body?.postId,
+          'postId',
+          200,
+        );
+
+      const ref =
+        db.collection('discoveries')
+          .doc(postId);
+
+      const snapshot =
+        await ref.get();
+
+      if (!snapshot.exists) {
+        throw new ApiError(
+          404,
+          'not-found',
+          'PublicaÃ§Ã£o nÃ£o encontrada.',
+        );
+      }
+
+      if (String(
+            snapshot.data()
+              ?.businessId ||
+            '',
+          ) !== uid) {
+        throw new ApiError(
+          403,
+          'permission-denied',
+          'Sem permissÃ£o.',
+        );
+      }
+
+      await ref.update({
+        status: 'archived',
+        updatedAt:
+          FieldValue
+            .serverTimestamp(),
+      });
+
+      res.json({ ok: true });
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+app.post(
+  '/blueprint/business-metric',
+  authenticate,
+  async (req, res, next) => {
+    try {
+      const uid = req.user.uid;
+
+      const postId =
+        requiredString(
+          req.body?.postId,
+          'postId',
+          200,
+        );
+
+      const event =
+        requiredString(
+          req.body?.event,
+          'event',
+          40,
+        );
+
+      const mapping = {
+        impression: 'views',
+        open: 'opens',
+        share: 'shareCount',
+        wantToGo:
+          'wantToGoClicks',
+      };
+
+      const field =
+        mapping[event];
+
+      if (!field) {
+        throw new ApiError(
+          400,
+          'invalid-event',
+          'MÃ©trica invÃ¡lida.',
+        );
+      }
+
+      const ref =
+        db.collection('discoveries')
+          .doc(postId);
+
+      const snapshot =
+        await ref.get();
+
+      if (!snapshot.exists) {
+        throw new ApiError(
+          404,
+          'not-found',
+          'PublicaÃ§Ã£o nÃ£o encontrada.',
+        );
+      }
+
+      const post =
+        snapshot.data() || {};
+
+      let counted = true;
+
+      if (event === 'impression' ||
+          event === 'open') {
+        const marker =
+          ref.collection('metric_users')
+            .doc(
+              `${uid}_${event}`,
+            );
+
+        await db.runTransaction(
+          async (transaction) => {
+            const current =
+              await transaction
+                .get(marker);
+
+            if (current.exists) {
+              counted = false;
+              return;
+            }
+
+            transaction.set(
+              marker,
+              {
+                userId: uid,
+                event,
+                createdAt:
+                  FieldValue
+                    .serverTimestamp(),
+              },
+            );
+
+            transaction.update(
+              ref,
+              {
+                [field]:
+                  FieldValue
+                    .increment(1),
+              },
+            );
+          },
+        );
+      } else {
+        await ref.update({
+          [field]:
+            FieldValue.increment(1),
+        });
+      }
+
+      if (counted) {
+        await bpMetric(
+          String(
+            post.businessId ||
+            '',
+          ),
+          event === 'impression'
+            ? 'impressions'
+            : field,
+          1,
+        );
+      }
+
+      res.json({
+        ok: true,
+        counted,
+      });
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+app.post(
+  '/blueprint/business-profile-visit',
+  authenticate,
+  async (req, res, next) => {
+    try {
+      const uid = req.user.uid;
+
+      const businessId =
+        requiredString(
+          req.body?.businessId,
+          'businessId',
+          200,
+        );
+
+      const ref =
+        db.collection('business_profiles')
+          .doc(businessId);
+
+      const marker =
+        ref.collection(
+          'profile_visit_users',
+        ).doc(uid);
+
+      let counted = false;
+
+      await db.runTransaction(
+        async (transaction) => {
+          const business =
+            await transaction
+              .get(ref);
+
+          if (!business.exists) {
+            throw new ApiError(
+              404,
+              'not-found',
+              'ComÃ©rcio nÃ£o encontrado.',
+            );
+          }
+
+          const visit =
+            await transaction
+              .get(marker);
+
+          if (visit.exists) {
+            return;
+          }
+
+          transaction.set(
+            marker,
+            {
+              userId: uid,
+              createdAt:
+                FieldValue
+                  .serverTimestamp(),
+            },
+          );
+
+          transaction.update(
+            ref,
+            {
+              profileVisits:
+                FieldValue
+                  .increment(1),
+            },
+          );
+
+          counted = true;
+        },
+      );
+
+      if (counted) {
+        await bpMetric(
+          businessId,
+          'profileVisits',
+          1,
+        );
+      }
+
+      res.json({
+        ok: true,
+        counted,
+      });
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+app.post(
+  '/blueprint/set-interested',
+  authenticate,
+  async (req, res, next) => {
+    try {
+      const uid = req.user.uid;
+
+      const postId =
+        requiredString(
+          req.body?.postId,
+          'postId',
+          200,
+        );
+
+      const interested =
+        req.body?.interested === true;
+
+      const ref =
+        db.collection('discoveries')
+          .doc(postId);
+
+      const interestRef =
+        ref.collection('interested')
+          .doc(uid);
+
+      let changed = false;
+      let businessId = '';
+
+      await db.runTransaction(
+        async (transaction) => {
+          const post =
+            await transaction
+              .get(ref);
+
+          if (!post.exists) {
+            throw new ApiError(
+              404,
+              'not-found',
+              'PublicaÃ§Ã£o nÃ£o encontrada.',
+            );
+          }
+
+          businessId =
+            String(
+              post.data()
+                ?.businessId ||
+              '',
+            );
+
+          const current =
+            await transaction
+              .get(interestRef);
+
+          if (interested &&
+              !current.exists) {
+            transaction.set(
+              interestRef,
+              {
+                userId: uid,
+                createdAt:
+                  FieldValue
+                    .serverTimestamp(),
+              },
+            );
+
+            transaction.update(
+              ref,
+              {
+                interestedCount:
+                  FieldValue
+                    .increment(1),
+                wantToGoClicks:
+                  FieldValue
+                    .increment(1),
+              },
+            );
+
+            changed = true;
+          }
+
+          if (!interested &&
+              current.exists) {
+            transaction.delete(
+              interestRef,
+            );
+
+            transaction.update(
+              ref,
+              {
+                interestedCount:
+                  FieldValue
+                    .increment(-1),
+              },
+            );
+
+            changed = true;
+          }
+        },
+      );
+
+      if (changed &&
+          interested) {
+        await bpMetric(
+          businessId,
+          'wantToGoClicks',
+          1,
+        );
+      }
+
+      res.json({
+        ok: true,
+        interested,
+        changed,
+      });
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+app.post(
+  '/blueprint/claim-open-slot',
+  authenticate,
+  async (req, res, next) => {
+    try {
+      const uid = req.user.uid;
+
+      const postId =
+        requiredString(
+          req.body?.postId,
+          'postId',
+          200,
+        );
+
+      const slotLabel =
+        optionalString(
+          req.body?.slotLabel,
+          40,
+        );
+
+      const ref =
+        db.collection('discoveries')
+          .doc(postId);
+
+      const claimId =
+        slotLabel
+          ? `${uid}_${Buffer
+              .from(slotLabel)
+              .toString('base64url')}`
+          : uid;
+
+      const claimRef =
+        ref.collection('claims')
+          .doc(claimId);
+
+      let businessId = '';
+      let becameFull = false;
+
+      await db.runTransaction(
+        async (transaction) => {
+          const postSnapshot =
+            await transaction
+              .get(ref);
+
+          if (!postSnapshot.exists) {
+            throw new ApiError(
+              404,
+              'not-found',
+              'PublicaÃ§Ã£o nÃ£o encontrada.',
+            );
+          }
+
+          const existing =
+            await transaction
+              .get(claimRef);
+
+          if (existing.exists) {
+            throw new ApiError(
+              409,
+              'already-claimed',
+              'Sua vaga jÃ¡ estÃ¡ confirmada.',
+            );
+          }
+
+          const post =
+            postSnapshot.data() ||
+            {};
+
+          businessId =
+            String(
+              post.businessId ||
+              '',
+            );
+
+          if (![
+            'open_slots',
+            'schedule',
+          ].includes(post.type)) {
+            throw new ApiError(
+              412,
+              'not-open-slots',
+              'Esta publicaÃ§Ã£o nÃ£o possui vagas.',
+            );
+          }
+
+          let claimedParticipants =
+            Math.max(
+              Number(
+                post.claimedParticipants ||
+                0,
+              ),
+              0,
+            );
+
+          const maxParticipants =
+            Math.max(
+              Number(
+                post.maxParticipants ||
+                0,
+              ),
+              0,
+            );
+
+          let availabilitySlots =
+            Array.isArray(
+              post.availabilitySlots,
+            )
+              ? post.availabilitySlots
+                  .map((v) => ({
+                    ...v,
+                  }))
+              : [];
+
+          if (post.type ===
+              'schedule') {
+            if (!slotLabel) {
+              throw new ApiError(
+                400,
+                'slot-required',
+                'Escolha um horÃ¡rio.',
+              );
+            }
+
+            const index =
+              availabilitySlots
+                .findIndex(
+                  (s) =>
+                    String(s.label) ===
+                    slotLabel,
+                );
+
+            if (index < 0) {
+              throw new ApiError(
+                404,
+                'slot-not-found',
+                'HorÃ¡rio nÃ£o encontrado.',
+              );
+            }
+
+            const capacity =
+              Math.max(
+                Number(
+                  availabilitySlots[
+                    index
+                  ].capacity || 0,
+                ),
+                0,
+              );
+
+            const claimed =
+              Math.max(
+                Number(
+                  availabilitySlots[
+                    index
+                  ].claimed || 0,
+                ),
+                0,
+              );
+
+            if (capacity > 0 &&
+                claimed >= capacity) {
+              throw new ApiError(
+                409,
+                'slot-full',
+                'HorÃ¡rio lotado.',
+              );
+            }
+
+            availabilitySlots[
+              index
+            ].claimed =
+              claimed + 1;
+
+            if (capacity > 0 &&
+                claimed + 1 >=
+                  capacity) {
+              becameFull = true;
+            }
+
+            claimedParticipants +=
+              1;
+          } else {
+            if (maxParticipants <=
+                  0 ||
+                claimedParticipants >=
+                  maxParticipants) {
+              throw new ApiError(
+                409,
+                'post-full',
+                'Grupo completo.',
+              );
+            }
+
+            claimedParticipants +=
+              1;
+
+            if (claimedParticipants >=
+                maxParticipants) {
+              becameFull = true;
+            }
+          }
+
+          transaction.set(
+            claimRef,
+            {
+              userId: uid,
+              slotLabel:
+                slotLabel || null,
+              createdAt:
+                FieldValue
+                  .serverTimestamp(),
+            },
+          );
+
+          transaction.update(
+            ref,
+            {
+              claimedParticipants,
+              availabilitySlots,
+              wantToGoClicks:
+                FieldValue
+                  .increment(1),
+              ...(becameFull
+                ? {
+                    slotsFilled:
+                      FieldValue
+                        .increment(1),
+                  }
+                : {}),
+              updatedAt:
+                FieldValue
+                  .serverTimestamp(),
+            },
+          );
+        },
+      );
+
+      const latest =
+        await ref.get();
+
+      const post =
+        latest.data() || {};
+
+      const threshold =
+        Math.max(
+          Number(
+            post.benefitMinParticipants ||
+            0,
+          ),
+          0,
+        );
+
+      const claimed =
+        Math.max(
+          Number(
+            post.claimedParticipants ||
+            0,
+          ),
+          0,
+        );
+
+      let unlockedCode = null;
+
+      if (threshold > 0 &&
+          claimed >= threshold &&
+          post.benefitType &&
+          !post.benefitUnlocked) {
+        const claims =
+          await ref
+            .collection('claims')
+            .get();
+
+        const participantIds =
+          [...new Set(
+            claims.docs
+              .map((doc) =>
+                String(
+                  doc.data()
+                    .userId || '',
+                ))
+              .filter(Boolean),
+          )];
+
+        const code =
+          await bpCreateBenefit({
+            businessId,
+            postId,
+            benefitType:
+              post.benefitType,
+            benefitValue:
+              post.benefitValue,
+            benefitLabel:
+              post.groupBenefit,
+            participants:
+              participantIds,
+          });
+
+        await ref.update({
+          benefitUnlocked: true,
+          benefitCode: code,
+          couponUnlocks:
+            FieldValue
+              .increment(1),
+        });
+
+        unlockedCode = code;
+
+        await Promise.allSettled(
+          participantIds.map(
+            (participantUid) =>
+              notify(
+                participantUid,
+                {
+                  type:
+                    'group_discount_unlocked',
+                  title:
+                    'BenefÃ­cio desbloqueado ðŸŽ',
+                  body:
+                    String(
+                      post.groupBenefit ||
+                      'Seu grupo desbloqueou um benefÃ­cio.',
+                    ),
+                  route:
+                    `/benefit/${code}`,
+                },
+              ),
+          ),
+        );
+      }
+
+      await bpMetric(
+        businessId,
+        'wantToGoClicks',
+        1,
+      );
+
+      if (becameFull) {
+        await bpMetric(
+          businessId,
+          'slotsFilled',
+          1,
+        );
+      }
+
+      res.json({
+        ok: true,
+        benefitCode:
+          unlockedCode,
+        full: becameFull,
+      });
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+app.post(
+  '/blueprint/benefit-status',
+  authenticate,
+  async (req, res, next) => {
+    try {
+      const uid = req.user.uid;
+
+      const code =
+        requiredString(
+          req.body?.code,
+          'code',
+          40,
+        ).toUpperCase();
+
+      const snapshot =
+        await db
+          .collection('benefit_codes')
+          .doc(code)
+          .get();
+
+      if (!snapshot.exists) {
+        throw new ApiError(
+          404,
+          'invalid-code',
+          'CÃ³digo nÃ£o encontrado.',
+        );
+      }
+
+      const data =
+        snapshot.data() || {};
+
+      const business =
+        await db
+          .collection(
+            'business_profiles',
+          )
+          .doc(
+            String(
+              data.businessId ||
+              '',
+            ),
+          )
+          .get();
+
+      const participantIds =
+        Array.isArray(
+          data.participantIds,
+        )
+          ? data.participantIds
+              .map(String)
+          : [];
+
+      const ownerUid =
+        business.data()
+          ?.ownerUid ||
+        business.data()
+          ?.ownerId ||
+        '';
+
+      const canRedeem =
+        business.exists &&
+        String(ownerUid) === uid;
+
+      const canView =
+        canRedeem ||
+        participantIds
+          .includes(uid);
+
+      if (!canView) {
+        throw new ApiError(
+          403,
+          'permission-denied',
+          'VocÃª nÃ£o pode acessar este benefÃ­cio.',
+        );
+      }
+
+      res.json({
+        ok: true,
+        code,
+        status: data.status,
+        benefitType:
+          data.benefitType,
+        benefitValue:
+          data.benefitValue,
+        benefitLabel:
+          data.benefitLabel,
+        participantCount:
+          data.participantCount,
+        canRedeem,
+      });
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+app.post(
+  '/blueprint/redeem-benefit',
+  authenticate,
+  async (req, res, next) => {
+    try {
+      const uid = req.user.uid;
+
+      const code =
+        requiredString(
+          req.body?.code,
+          'code',
+          40,
+        ).toUpperCase();
+
+      const ref =
+        db.collection('benefit_codes')
+          .doc(code);
+
+      let businessId = '';
+
+      await db.runTransaction(
+        async (transaction) => {
+          const benefit =
+            await transaction
+              .get(ref);
+
+          if (!benefit.exists) {
+            throw new ApiError(
+              404,
+              'invalid-code',
+              'CÃ³digo nÃ£o encontrado.',
+            );
+          }
+
+          const data =
+            benefit.data() || {};
+
+          businessId =
+            String(
+              data.businessId ||
+              '',
+            );
+
+          const businessRef =
+            db.collection(
+              'business_profiles',
+            ).doc(businessId);
+
+          const business =
+            await transaction
+              .get(businessRef);
+
+          const ownerUid =
+            business.data()
+              ?.ownerUid ||
+            business.data()
+              ?.ownerId ||
+            '';
+
+          if (!business.exists ||
+              String(ownerUid) !==
+                uid) {
+            throw new ApiError(
+              403,
+              'permission-denied',
+              'Somente o comÃ©rcio pode validar este cÃ³digo.',
+            );
+          }
+
+          if (data.status ===
+              'redeemed') {
+            throw new ApiError(
+              409,
+              'already-redeemed',
+              'Este cÃ³digo jÃ¡ foi utilizado.',
+            );
+          }
+
+          transaction.update(
+            ref,
+            {
+              status: 'redeemed',
+              redeemedAt:
+                FieldValue
+                  .serverTimestamp(),
+              redeemedByBusinessId:
+                businessId,
+            },
+          );
+
+          if (data.postId) {
+            transaction.update(
+              db.collection(
+                'discoveries',
+              ).doc(
+                String(
+                  data.postId,
+                ),
+              ),
+              {
+                couponValidations:
+                  FieldValue
+                    .increment(1),
+              },
+            );
+          }
+        },
+      );
+
+      await bpMetric(
+        businessId,
+        'couponValidations',
+        1,
+      );
+
+      res.json({ ok: true });
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+app.post(
+  '/blueprint/register-discovery-activity',
+  authenticate,
+  async (req, res, next) => {
+    try {
+      const uid = req.user.uid;
+
+      const discoveryId =
+        requiredString(
+          req.body?.discoveryId,
+          'discoveryId',
+          200,
+        );
+
+      const activityId =
+        requiredString(
+          req.body?.activityId,
+          'activityId',
+          200,
+        );
+
+      const discoveryRef =
+        db.collection('discoveries')
+          .doc(discoveryId);
+
+      const activityRef =
+        db.collection('activities')
+          .doc(activityId);
+
+      const markerRef =
+        discoveryRef
+          .collection('activity_links')
+          .doc(activityId);
+
+      let counted = false;
+      let businessId = '';
+
+      await db.runTransaction(
+        async (transaction) => {
+          const discovery =
+            await transaction
+              .get(discoveryRef);
+
+          const activity =
+            await transaction
+              .get(activityRef);
+
+          if (!discovery.exists ||
+              !activity.exists) {
+            throw new ApiError(
+              404,
+              'not-found',
+              'Descoberta ou atividade nÃ£o encontrada.',
+            );
+          }
+
+          const ad =
+            activity.data() || {};
+
+          if (String(
+                ad.creatorId ||
+                '',
+              ) !== uid ||
+              String(
+                ad.sourceDiscoveryId ||
+                '',
+              ) !== discoveryId) {
+            throw new ApiError(
+              403,
+              'invalid-source',
+              'VÃ­nculo de atividade invÃ¡lido.',
+            );
+          }
+
+          businessId =
+            String(
+              discovery.data()
+                ?.businessId ||
+              '',
+            );
+
+          const marker =
+            await transaction
+              .get(markerRef);
+
+          if (marker.exists) {
+            return;
+          }
+
+          transaction.set(
+            markerRef,
+            {
+              activityId,
+              creatorId: uid,
+              createdAt:
+                FieldValue
+                  .serverTimestamp(),
+            },
+          );
+
+          transaction.update(
+            discoveryRef,
+            {
+              activitiesCreated:
+                FieldValue
+                  .increment(1),
+              groupsCreated:
+                FieldValue
+                  .increment(1),
+              updatedAt:
+                FieldValue
+                  .serverTimestamp(),
+            },
+          );
+
+          counted = true;
+        },
+      );
+
+      if (counted) {
+        await bpMetric(
+          businessId,
+          'groupsCreated',
+          1,
+        );
+      }
+
+      res.json({
+        ok: true,
+        counted,
+      });
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+app.post(
+  '/blueprint/record-discovery-participant',
+  authenticate,
+  async (req, res, next) => {
+    try {
+      const actorUid =
+        req.user.uid;
+
+      const activityId =
+        requiredString(
+          req.body?.activityId,
+          'activityId',
+          200,
+        );
+
+      const participantUid =
+        optionalString(
+          req.body?.userId,
+          200,
+        ) || actorUid;
+
+      const activityRef =
+        db.collection('activities')
+          .doc(activityId);
+
+      const activity =
+        await activityRef.get();
+
+      if (!activity.exists) {
+        throw new ApiError(
+          404,
+          'not-found',
+          'Atividade nÃ£o encontrada.',
+        );
+      }
+
+      const ad =
+        activity.data() || {};
+
+      if (participantUid !==
+            actorUid &&
+          String(
+            ad.creatorId ||
+            '',
+          ) !== actorUid) {
+        throw new ApiError(
+          403,
+          'permission-denied',
+          'Sem permissÃ£o.',
+        );
+      }
+
+      const participant =
+        await activityRef
+          .collection('participants')
+          .doc(participantUid)
+          .get();
+
+      if (!participant.exists) {
+        throw new ApiError(
+          412,
+          'not-participant',
+          'UsuÃ¡rio nÃ£o participa.',
+        );
+      }
+
+      const discoveryId =
+        String(
+          ad.sourceDiscoveryId ||
+          '',
+        );
+
+      if (!discoveryId) {
+        return res.json({
+          ok: true,
+          counted: false,
+        });
+      }
+
+      const discoveryRef =
+        db.collection('discoveries')
+          .doc(discoveryId);
+
+      const markerRef =
+        discoveryRef
+          .collection(
+            'participant_users',
+          )
+          .doc(participantUid);
+
+      let counted = false;
+      let businessId = '';
+
+      await db.runTransaction(
+        async (transaction) => {
+          const discovery =
+            await transaction
+              .get(discoveryRef);
+
+          if (!discovery.exists) {
+            return;
+          }
+
+          const marker =
+            await transaction
+              .get(markerRef);
+
+          if (marker.exists) {
+            return;
+          }
+
+          businessId =
+            String(
+              discovery.data()
+                ?.businessId ||
+              '',
+            );
+
+          transaction.set(
+            markerRef,
+            {
+              userId:
+                participantUid,
+              firstActivityId:
+                activityId,
+              createdAt:
+                FieldValue
+                  .serverTimestamp(),
+            },
+          );
+
+          transaction.update(
+            discoveryRef,
+            {
+              participantsGenerated:
+                FieldValue
+                  .increment(1),
+              updatedAt:
+                FieldValue
+                  .serverTimestamp(),
+            },
+          );
+
+          counted = true;
+        },
+      );
+
+      if (counted) {
+        await bpMetric(
+          businessId,
+          'participantsGenerated',
+          1,
+        );
+      }
+
+      res.json({
+        ok: true,
+        counted,
+      });
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+app.post(
+  '/blueprint/business-dashboard',
+  authenticate,
+  async (req, res, next) => {
+    try {
+      const uid = req.user.uid;
+
+      const business =
+        await db
+          .collection(
+            'business_profiles',
+          )
+          .doc(uid)
+          .get();
+
+      if (!business.exists) {
+        throw new ApiError(
+          404,
+          'not-found',
+          'Perfil comercial nÃ£o encontrado.',
+        );
+      }
+
+      const week = {};
+
+      for (
+        let offset = 0;
+        offset < 7;
+        offset += 1
+      ) {
+        const date = new Date();
+
+        date.setUTCDate(
+          date.getUTCDate() -
+          offset,
+        );
+
+        const daily =
+          await business.ref
+            .collection(
+              'metrics_daily',
+            )
+            .doc(bpDayKey(date))
+            .get();
+
+        if (!daily.exists) {
+          continue;
+        }
+
+        const data =
+          daily.data() || {};
+
+        Object.entries(data)
+          .forEach(
+            ([key, value]) => {
+              if (typeof value ===
+                  'number') {
+                week[key] =
+                  Number(
+                    week[key] || 0,
+                  ) + value;
+              }
+            },
+          );
+      }
+
+      res.json({
+        ok: true,
+        week,
+        business:
+          business.data(),
+      });
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+app.post(
+  '/blueprint/checkout-plan',
+  authenticate,
+  async (req, res, next) => {
+    try {
+      const uid = req.user.uid;
+
+      const plan =
+        requiredString(
+          req.body?.plan,
+          'plan',
+          20,
+        ).toLowerCase();
+
+      const spec =
+        BP_PLANS[plan];
+
+      if (!spec ||
+          plan === 'free') {
+        throw new ApiError(
+          400,
+          'invalid-plan',
+          'Plano invÃ¡lido.',
+        );
+      }
+
+      const checkoutUrl =
+        await bpPayment({
+          title:
+            `JuntaÃ­ ${plan.toUpperCase()} - mensal`,
+          price:
+            spec.price,
+          externalReference:
+            `plan|${uid}|${plan}|${Date.now()}`,
+        });
+
+      res.json({
+        ok: true,
+        checkoutUrl,
+      });
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+app.post(
+  '/blueprint/sponsor-post',
+  authenticate,
+  async (req, res, next) => {
+    try {
+      const uid = req.user.uid;
+
+      const postId =
+        requiredString(
+          req.body?.postId,
+          'postId',
+          200,
+        );
+
+      const packageId =
+        requiredString(
+          req.body?.package,
+          'package',
+          20,
+        );
+
+      const prices = {
+        '24h': 9.90,
+        '3d': 19.90,
+        city3d: 39.90,
+      };
+
+      if (!prices[packageId]) {
+        throw new ApiError(
+          400,
+          'invalid-package',
+          'Pacote invÃ¡lido.',
+        );
+      }
+
+      const post =
+        await db
+          .collection('discoveries')
+          .doc(postId)
+          .get();
+
+      if (!post.exists ||
+          String(
+            post.data()
+              ?.businessId ||
+            '',
+          ) !== uid) {
+        throw new ApiError(
+          403,
+          'permission-denied',
+          'PublicaÃ§Ã£o invÃ¡lida.',
+        );
+      }
+
+      const city =
+        optionalString(
+          req.body?.city,
+          100,
+        );
+
+      if (packageId ===
+            'city3d' &&
+          !city) {
+        throw new ApiError(
+          400,
+          'city-required',
+          'Informe a cidade da campanha.',
+        );
+      }
+
+      const checkoutUrl =
+        await bpPayment({
+          title:
+            `Destaque JuntaÃ­ ${packageId}`,
+          price:
+            prices[packageId],
+          externalReference:
+            `campaign|${uid}|${postId}|${packageId}|${encodeURIComponent(city)}|${Date.now()}`,
+        });
+
+      res.json({
+        ok: true,
+        checkoutUrl,
+      });
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+app.post(
+  '/blueprint/mercadopago/webhook',
+  async (req, res, next) => {
+    try {
+      const token =
+        String(
+          process.env
+            .MERCADO_PAGO_ACCESS_TOKEN ||
+          '',
+        ).trim();
+
+      if (!token) {
+        return res
+          .status(204)
+          .end();
+      }
+
+      const paymentId =
+        String(
+          req.query?.['data.id'] ||
+          req.body?.data?.id ||
+          req.body?.id ||
+          '',
+        ).trim();
+
+      if (!paymentId) {
+        return res
+          .status(204)
+          .end();
+      }
+
+      const response =
+        await fetch(
+          `https://api.mercadopago.com/v1/payments/${encodeURIComponent(paymentId)}`,
+          {
+            headers: {
+              Authorization:
+                `Bearer ${token}`,
+            },
+          },
+        );
+
+      const payment =
+        await response
+          .json()
+          .catch(() => ({}));
+
+      if (!response.ok ||
+          payment.status !==
+            'approved') {
+        return res
+          .status(204)
+          .end();
+      }
+
+      const external =
+        String(
+          payment
+            .external_reference ||
+          '',
+        );
+
+      const parts =
+        external.split('|');
+
+      if (parts[0] ===
+            'plan' &&
+          parts.length >= 3) {
+        const uid =
+          parts[1];
+
+        const plan =
+          parts[2];
+
+        const spec =
+          BP_PLANS[plan];
+
+        if (spec) {
+          const now =
+            new Date();
+
+          const end =
+            new Date(now);
+
+          end.setUTCMonth(
+            end.getUTCMonth() +
+            1,
+          );
+
+          await db
+            .collection(
+              'business_profiles',
+            )
+            .doc(uid)
+            .set(
+              {
+                plan,
+                monthlyPostLimit:
+                  spec
+                    .monthlyPostLimit,
+                activePostLimit:
+                  spec
+                    .activePostLimit,
+                billingPeriodStart:
+                  Timestamp
+                    .fromDate(now),
+                billingPeriodEnd:
+                  Timestamp
+                    .fromDate(end),
+                paymentProvider:
+                  'mercadopago',
+                lastPaymentId:
+                  paymentId,
+                updatedAt:
+                  FieldValue
+                    .serverTimestamp(),
+              },
+              { merge: true },
+            );
+        }
+      }
+
+      if (parts[0] ===
+            'campaign' &&
+          parts.length >= 5) {
+        const uid =
+          parts[1];
+
+        const postId =
+          parts[2];
+
+        const packageId =
+          parts[3];
+
+        const city =
+          decodeURIComponent(
+            parts[4] || '',
+          );
+
+        const hours =
+          packageId === '24h'
+            ? 24
+            : 72;
+
+        const until =
+          new Date(
+            Date.now() +
+            hours *
+            60 *
+            60 *
+            1000,
+          );
+
+        await db
+          .collection('campaigns')
+          .doc(paymentId)
+          .set(
+            {
+              campaignId:
+                paymentId,
+              businessId: uid,
+              postId,
+              package:
+                packageId,
+              city:
+                city || null,
+              status: 'active',
+              startsAt:
+                FieldValue
+                  .serverTimestamp(),
+              endsAt:
+                Timestamp
+                  .fromDate(until),
+              paymentId,
+              createdAt:
+                FieldValue
+                  .serverTimestamp(),
+            },
+            { merge: true },
+          );
+
+        await db
+          .collection('discoveries')
+          .doc(postId)
+          .update({
+            sponsored: true,
+            sponsoredUntil:
+              Timestamp
+                .fromDate(until),
+            sponsoredCity:
+              city || null,
+            updatedAt:
+              FieldValue
+                .serverTimestamp(),
+          });
+      }
+
+      res
+        .status(204)
+        .end();
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+app.post(
+  '/blueprint/report-content',
+  authenticate,
+  async (req, res, next) => {
+    try {
+      const uid = req.user.uid;
+
+      const targetType =
+        requiredString(
+          req.body?.targetType,
+          'targetType',
+          40,
+        );
+
+      const targetId =
+        requiredString(
+          req.body?.targetId,
+          'targetId',
+          400,
+        );
+
+      const reason =
+        requiredString(
+          req.body?.reason,
+          'reason',
+          120,
+        );
+
+      const details =
+        optionalString(
+          req.body?.details,
+          1200,
+        );
+
+      if (!BP_REPORT_TYPES
+          .has(targetType)) {
+        throw new ApiError(
+          400,
+          'invalid-report-type',
+          'Tipo de denÃºncia invÃ¡lido.',
+        );
+      }
+
+      await db
+        .collection('reports')
+        .add({
+          reporterId: uid,
+          targetType,
+          targetId,
+          reason,
+          details,
+          status: 'open',
+          createdAt:
+            FieldValue
+              .serverTimestamp(),
+          updatedAt:
+            FieldValue
+              .serverTimestamp(),
+        });
+
+      res.json({ ok: true });
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+app.post(
+  '/blueprint/admin/bootstrap',
+  authenticate,
+  async (req, res, next) => {
+    try {
+      const allowed =
+        String(
+          process.env
+            .ADMIN_EMAILS ||
+          '',
+        )
+          .split(',')
+          .map((v) =>
+            v.trim()
+              .toLowerCase())
+          .filter(Boolean);
+
+      const email =
+        String(
+          req.user.email ||
+          '',
+        ).toLowerCase();
+
+      if (!allowed
+          .includes(email)) {
+        throw new ApiError(
+          403,
+          'admin-required',
+          'E-mail nÃ£o autorizado.',
+        );
+      }
+
+      await admin.auth()
+        .setCustomUserClaims(
+          req.user.uid,
+          { admin: true },
+        );
+
+      res.json({
+        ok: true,
+        refreshToken: true,
+      });
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+app.post(
+  '/blueprint/admin/overview',
+  authenticate,
+  bpAdmin,
+  async (_req, res, next) => {
+    try {
+      const [
+        businesses,
+        reports,
+        campaigns,
+      ] = await Promise.all([
+        db.collection(
+          'business_profiles',
+        )
+          .limit(300)
+          .get(),
+
+        db.collection('reports')
+          .limit(300)
+          .get(),
+
+        db.collection('campaigns')
+          .limit(300)
+          .get(),
+      ]);
+
+      res.json({
+        ok: true,
+        businesses:
+          businesses.docs.map(
+            (doc) => ({
+              id: doc.id,
+              ...doc.data(),
+            }),
+          ),
+        reports:
+          reports.docs.map(
+            (doc) => ({
+              id: doc.id,
+              ...doc.data(),
+            }),
+          ),
+        campaigns:
+          campaigns.docs.map(
+            (doc) => ({
+              id: doc.id,
+              ...doc.data(),
+            }),
+          ),
+      });
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+app.post(
+  '/blueprint/admin/business-review',
+  authenticate,
+  bpAdmin,
+  async (req, res, next) => {
+    try {
+      const businessId =
+        requiredString(
+          req.body?.businessId,
+          'businessId',
+          200,
+        );
+
+      const action =
+        requiredString(
+          req.body?.action,
+          'action',
+          30,
+        );
+
+      const allowed =
+        new Set([
+          'approve',
+          'reject',
+          'suspend',
+          'activate',
+          'verify',
+          'unverify',
+        ]);
+
+      if (!allowed.has(action)) {
+        throw new ApiError(
+          400,
+          'invalid-action',
+          'AÃ§Ã£o invÃ¡lida.',
+        );
+      }
+
+      const update = {
+        updatedAt:
+          FieldValue
+            .serverTimestamp(),
+      };
+
+      if (action === 'approve') {
+        update.reviewStatus =
+          'approved';
+      }
+
+      if (action === 'reject') {
+        update.reviewStatus =
+          'rejected';
+      }
+
+      if (action === 'suspend') {
+        update.status =
+          'suspended';
+      }
+
+      if (action === 'activate') {
+        update.status =
+          'active';
+      }
+
+      if (action === 'verify') {
+        update.verified = true;
+      }
+
+      if (action === 'unverify') {
+        update.verified = false;
+      }
+
+      await db
+        .collection(
+          'business_profiles',
+        )
+        .doc(businessId)
+        .update(update);
+
+      res.json({ ok: true });
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+app.post(
+  '/blueprint/admin/set-plan',
+  authenticate,
+  bpAdmin,
+  async (req, res, next) => {
+    try {
+      const businessId =
+        requiredString(
+          req.body?.businessId,
+          'businessId',
+          200,
+        );
+
+      const plan =
+        requiredString(
+          req.body?.plan,
+          'plan',
+          20,
+        ).toLowerCase();
+
+      const spec =
+        BP_PLANS[plan];
+
+      if (!spec) {
+        throw new ApiError(
+          400,
+          'invalid-plan',
+          'Plano invÃ¡lido.',
+        );
+      }
+
+      await db
+        .collection(
+          'business_profiles',
+        )
+        .doc(businessId)
+        .update({
+          plan,
+          monthlyPostLimit:
+            spec.monthlyPostLimit,
+          activePostLimit:
+            spec.activePostLimit,
+          updatedAt:
+            FieldValue
+              .serverTimestamp(),
+        });
+
+      res.json({ ok: true });
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+app.post(
+  '/blueprint/admin/report-status',
+  authenticate,
+  bpAdmin,
+  async (req, res, next) => {
+    try {
+      const reportId =
+        requiredString(
+          req.body?.reportId,
+          'reportId',
+          200,
+        );
+
+      const status =
+        requiredString(
+          req.body?.status,
+          'status',
+          30,
+        );
+
+      if (![
+        'open',
+        'reviewing',
+        'resolved',
+        'dismissed',
+      ].includes(status)) {
+        throw new ApiError(
+          400,
+          'invalid-status',
+          'Status invÃ¡lido.',
+        );
+      }
+
+      await db
+        .collection('reports')
+        .doc(reportId)
+        .update({
+          status,
+          reviewedBy:
+            req.user.uid,
+          updatedAt:
+            FieldValue
+              .serverTimestamp(),
+        });
+
+      res.json({ ok: true });
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+app.post(
+  '/blueprint/cron/reminders',
+  async (req, res, next) => {
+    try {
+      const secret =
+        String(
+          process.env
+            .CRON_SECRET ||
+          '',
+        );
+
+      if (!secret ||
+          String(
+            req.headers[
+              'x-cron-secret'
+            ] || '',
+          ) !== secret) {
+        throw new ApiError(
+          401,
+          'invalid-cron-secret',
+          'NÃ£o autorizado.',
+        );
+      }
+
+      const now =
+        new Date();
+
+      const inTwoHours =
+        new Date(
+          now.getTime() +
+          2 *
+          60 *
+          60 *
+          1000,
+        );
+
+      const activities =
+        await db
+          .collection('activities')
+          .where(
+            'status',
+            '==',
+            'active',
+          )
+          .get();
+
+      let reminders = 0;
+      let benefits = 0;
+
+      for (
+        const activityDoc
+        of activities.docs
+      ) {
+        const activity =
+          activityDoc.data() ||
+          {};
+
+        const startsAt =
+          activity.startsAt
+            ?.toDate?.();
+
+        if (startsAt &&
+            startsAt > now &&
+            startsAt <=
+              inTwoHours &&
+            !activity
+              .reminder2hSentAt) {
+          const participants =
+            await activityDoc.ref
+              .collection(
+                'participants',
+              )
+              .get();
+
+          await Promise.allSettled(
+            participants.docs.map(
+              (participant) =>
+                notify(
+                  participant.id,
+                  {
+                    type:
+                      'event_reminder',
+                    title:
+                      'Sua atividade comeÃ§a em breve',
+                    body:
+                      String(
+                        activity.title ||
+                        'Atividade',
+                      ),
+                    activityId:
+                      activityDoc.id,
+                    route:
+                      `/activity/${activityDoc.id}`,
+                  },
+                ),
+            ),
+          );
+
+          await activityDoc.ref
+            .update({
+              reminder2hSentAt:
+                FieldValue
+                  .serverTimestamp(),
+            });
+
+          reminders += 1;
+        }
+
+        const discoveryId =
+          String(
+            activity
+              .sourceDiscoveryId ||
+            '',
+          );
+
+        if (discoveryId &&
+            !activity.benefitCode) {
+          const discovery =
+            await db
+              .collection(
+                'discoveries',
+              )
+              .doc(discoveryId)
+              .get();
+
+          const d =
+            discovery.data() ||
+            {};
+
+          const threshold =
+            Math.max(
+              Number(
+                d.benefitMinParticipants ||
+                0,
+              ),
+              0,
+            );
+
+          const count =
+            Math.max(
+              Number(
+                activity.participantCount ||
+                0,
+              ),
+              0,
+            );
+
+          if (threshold > 0 &&
+              count >= threshold &&
+              d.benefitType) {
+            const participants =
+              await activityDoc.ref
+                .collection(
+                  'participants',
+                )
+                .get();
+
+            const ids =
+              participants.docs
+                .map((p) => p.id);
+
+            const code =
+              await bpCreateBenefit({
+                businessId:
+                  String(
+                    d.businessId ||
+                    '',
+                  ),
+                postId:
+                  discoveryId,
+                activityId:
+                  activityDoc.id,
+                benefitType:
+                  d.benefitType,
+                benefitValue:
+                  d.benefitValue,
+                benefitLabel:
+                  d.groupBenefit,
+                participants:
+                  ids,
+              });
+
+            await activityDoc.ref
+              .update({
+                benefitCode:
+                  code,
+                benefitUnlockedAt:
+                  FieldValue
+                    .serverTimestamp(),
+              });
+
+            await Promise.allSettled(
+              ids.map(
+                (participantUid) =>
+                  notify(
+                    participantUid,
+                    {
+                      type:
+                        'group_discount_unlocked',
+                      title:
+                        'BenefÃ­cio desbloqueado ðŸŽ',
+                      body:
+                        String(
+                          d.groupBenefit ||
+                          'Seu grupo desbloqueou um benefÃ­cio.',
+                        ),
+                      activityId:
+                        activityDoc.id,
+                      route:
+                        `/benefit/${code}`,
+                    },
+                  ),
+              ),
+            );
+
+            benefits += 1;
+          }
+        }
+      }
+
+      res.json({
+        ok: true,
+        reminders,
+        benefits,
+      });
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+app.get(
+  '/business/:id',
+  async (req, res, next) => {
+    try {
+      const id =
+        requiredString(
+          req.params.id,
+          'id',
+          200,
+        );
+
+      const business =
+        await db
+          .collection(
+            'business_profiles',
+          )
+          .doc(id)
+          .get();
+
+      if (!business.exists) {
+        throw new ApiError(
+          404,
+          'not-found',
+          'ComÃ©rcio nÃ£o encontrado.',
+        );
+      }
+
+      const d =
+        business.data() || {};
+
+      const title =
+        escapeHtml(
+          d.name || 'JuntaÃ­',
+        );
+
+      const text =
+        escapeHtml(
+          d.description ||
+          d.category ||
+          '',
+        );
+
+      res.type('html')
+        .send(
+          `<!doctype html><html lang="pt-BR"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${title} â€¢ JuntaÃ­</title><body style="font-family:system-ui;padding:30px;max-width:650px;margin:auto"><h1>JuntaÃ­</h1><h2>${title}</h2><p>${text}</p><a href="juntai:///business/${encodeURIComponent(id)}">Abrir no JuntaÃ­</a></body></html>`,
+        );
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+app.get(
+  '/discovery/:id',
+  async (req, res, next) => {
+    try {
+      const id =
+        requiredString(
+          req.params.id,
+          'id',
+          200,
+        );
+
+      const post =
+        await db
+          .collection('discoveries')
+          .doc(id)
+          .get();
+
+      if (!post.exists) {
+        throw new ApiError(
+          404,
+          'not-found',
+          'Descoberta nÃ£o encontrada.',
+        );
+      }
+
+      const d =
+        post.data() || {};
+
+      const title =
+        escapeHtml(
+          d.title ||
+          'Descoberta',
+        );
+
+      const text =
+        escapeHtml(
+          d.description || '',
+        );
+
+      res.type('html')
+        .send(
+          `<!doctype html><html lang="pt-BR"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${title} â€¢ JuntaÃ­</title><body style="font-family:system-ui;padding:30px;max-width:650px;margin:auto"><h1>JuntaÃ­</h1><h2>${title}</h2><p>${text}</p><a href="juntai:///discovery/${encodeURIComponent(id)}">Abrir no JuntaÃ­</a></body></html>`,
+        );
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+app.get(
+  '/profile/:username',
+  async (req, res, next) => {
+    try {
+      const username =
+        bpUsername(
+          req.params.username,
+        );
+
+      const lookup =
+        await db
+          .collection('usernames')
+          .doc(username)
+          .get();
+
+      if (!lookup.exists) {
+        throw new ApiError(
+          404,
+          'not-found',
+          'Perfil nÃ£o encontrado.',
+        );
+      }
+
+      const uid =
+        String(
+          lookup.data()?.uid ||
+          '',
+        );
+
+      const profile =
+        await db
+          .collection('users')
+          .doc(uid)
+          .get();
+
+      const d =
+        profile.data() || {};
+
+      const title =
+        escapeHtml(
+          d.name ||
+          `@${username}`,
+        );
+
+      res.type('html')
+        .send(
+          `<!doctype html><html lang="pt-BR"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${title} â€¢ JuntaÃ­</title><body style="font-family:system-ui;padding:30px;max-width:650px;margin:auto"><h1>JuntaÃ­</h1><h2>${title}</h2><p>@${escapeHtml(username)}</p><a href="juntai:///profile/${encodeURIComponent(username)}">Abrir no JuntaÃ­</a></body></html>`,
+        );
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+app.get(
+  '/benefit/:code',
+  async (req, res, next) => {
+    try {
+      const code =
+        requiredString(
+          req.params.code,
+          'code',
+          40,
+        ).toUpperCase();
+
+      const benefit =
+        await db
+          .collection(
+            'benefit_codes',
+          )
+          .doc(code)
+          .get();
+
+      if (!benefit.exists) {
+        throw new ApiError(
+          404,
+          'not-found',
+          'BenefÃ­cio nÃ£o encontrado.',
+        );
+      }
+
+      const d =
+        benefit.data() || {};
+
+      res.type('html')
+        .send(
+          `<!doctype html><html lang="pt-BR"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>BenefÃ­cio JuntaÃ­</title><body style="font-family:system-ui;padding:30px;max-width:650px;margin:auto"><h1>JuntaÃ­</h1><h2>${escapeHtml(d.benefitLabel || 'BenefÃ­cio')}</h2><p><strong>${escapeHtml(code)}</strong></p><a href="juntai:///benefit/${encodeURIComponent(code)}">Abrir no JuntaÃ­</a></body></html>`,
+        );
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+app.get(
+  '/payment/:status',
+  (req, res) => {
+    const status =
+      escapeHtml(
+        req.params.status || '',
+      );
+
+    res.type('html')
+      .send(
+        `<!doctype html><html lang="pt-BR"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><body style="font-family:system-ui;padding:30px;text-align:center"><h1>JuntaÃ­</h1><p>Pagamento: ${status}</p><a href="juntai:///business">Voltar ao app</a></body></html>`,
+      );
+  },
+);
+
+// /JUNTAI_BLUEPRINT_V6
 
 app.use((error, _req, res, _next) => {
   console.error(error);

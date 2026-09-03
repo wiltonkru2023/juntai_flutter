@@ -101,6 +101,18 @@ class SettingsScreen extends StatelessWidget {
             ),
             _tile(
               context,
+              Icons.alternate_email_rounded,
+              'Alterar @usuÃ¡rio',
+              () => context.go('/profile/username/change'),
+            ),
+            _tile(
+              context,
+              Icons.alternate_email_rounded,
+              'Alterar @usuário',
+              () => context.go('/profile/username/change'),
+            ),
+            _tile(
+              context,
               Icons.notifications_none_rounded,
               'Notificações',
               () => context.go('/notifications'),

@@ -49,6 +49,18 @@ class UsernameService {
     ].take(3).toList();
   }
 
+  Future<void> changeUsername(String value) async {
+    final normalized = normalize(value);
+    final error = validate(normalized);
+    if (error != null) throw UsernameException(error);
+
+    try {
+      await ApiService.instance.changeUsername(normalized);
+    } on ApiException catch (error) {
+      throw UsernameException(error.message);
+    }
+  }
+
   Future<void> createProfileWithUsername({
     required String uid,
     required String username,

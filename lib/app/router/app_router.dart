@@ -17,6 +17,15 @@ import '../../features/chat/presentation/screens/conversations_screen.dart';
 import '../../features/chat/presentation/screens/group_chat_screen.dart';
 import '../../features/chat/presentation/screens/private_chat_screen.dart';
 import '../../features/discoveries/presentation/screens/business_center_screen.dart';
+import '../../features/discoveries/presentation/screens/benefit_code_screen.dart';
+import '../../features/discoveries/presentation/screens/business_dashboard_screen.dart';
+import '../../features/discoveries/presentation/screens/business_edit_screen.dart';
+import '../../features/discoveries/presentation/screens/business_metrics_screen.dart';
+import '../../features/discoveries/presentation/screens/business_plans_screen.dart';
+import '../../features/discoveries/presentation/screens/sponsor_post_screen.dart';
+import '../../features/profile/presentation/screens/change_username_screen.dart';
+import '../../features/profile/presentation/screens/followers_screen.dart';
+import '../../features/profile/presentation/screens/profile_by_username_screen.dart';
 import '../../features/discoveries/presentation/screens/business_profile_screen.dart';
 import '../../features/discoveries/presentation/screens/create_discovery_screen.dart';
 import '../../features/discoveries/presentation/screens/discoveries_screen.dart';
@@ -100,6 +109,30 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             builder: (_, __) => const BusinessCenterScreen(),
           ),
           GoRoute(
+            path: '/business/create',
+            builder: (_, __) => const BusinessEditScreen(editing: false),
+          ),
+          GoRoute(
+            path: '/business/edit',
+            builder: (_, __) => const BusinessEditScreen(editing: true),
+          ),
+          GoRoute(
+            path: '/business/plans',
+            builder: (_, __) => const BusinessPlansScreen(),
+          ),
+          GoRoute(
+            path: '/business/:id/dashboard',
+            builder: (_, state) => BusinessDashboardScreen(
+              businessId: state.pathParameters['id']!,
+            ),
+          ),
+          GoRoute(
+            path: '/business/:id/metrics',
+            builder: (_, state) => BusinessMetricsScreen(
+              businessId: state.pathParameters['id']!,
+            ),
+          ),
+          GoRoute(
             path: '/business/:id',
             builder: (_, state) => BusinessProfileScreen(
               businessId: state.pathParameters['id']!,
@@ -108,6 +141,12 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: '/business/post/create',
             builder: (_, __) => const CreateDiscoveryScreen(),
+          ),
+          GoRoute(
+            path: '/business/post/:id/sponsor',
+            builder: (_, state) => SponsorPostScreen(
+              postId: state.pathParameters['id']!,
+            ),
           ),
           GoRoute(
             path: '/business/post/:id/edit',
@@ -146,6 +185,42 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             path: '/message/:userId',
             builder: (_, state) => PrivateChatScreen(
               otherUserId: state.pathParameters['userId']!,
+            ),
+          ),
+          GoRoute(
+            path: '/benefit/:code',
+            builder: (_, state) => BenefitCodeScreen(
+              code: state.pathParameters['code']!,
+            ),
+          ),
+          GoRoute(
+            path: '/followers/:userId',
+            builder: (_, state) => FollowersScreen(
+              userId: state.pathParameters['userId']!,
+              mode: 'followers',
+            ),
+          ),
+          GoRoute(
+            path: '/following/:userId',
+            builder: (_, state) => FollowersScreen(
+              userId: state.pathParameters['userId']!,
+              mode: 'following',
+            ),
+          ),
+          GoRoute(
+            path: '/profile/username/change',
+            builder: (_, __) => const ChangeUsernameScreen(),
+          ),
+          GoRoute(
+            path: '/profile/username/:username',
+            builder: (_, state) => ProfileByUsernameScreen(
+              username: state.pathParameters['username']!,
+            ),
+          ),
+          GoRoute(
+            path: '/activity/from-post/:postId',
+            builder: (_, state) => CreateActivityScreen(
+              sourceDiscoveryId: state.pathParameters['postId']!,
             ),
           ),
           GoRoute(

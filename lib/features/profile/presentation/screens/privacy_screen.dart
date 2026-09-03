@@ -16,33 +16,32 @@ class PrivacyScreen extends StatelessWidget {
     bool value,
   ) async {
     final user = FirebaseAuth.instance.currentUser;
-
     if (user == null) {
       context.go('/login');
       return;
     }
 
     try {
-      if (value &&
-          (key == 'chatNotifications' || key == 'activityNotifications')) {
+      if (value && key.toLowerCase().contains('notification')) {
         await NotificationService.instance.requestPermission();
       }
 
-      await FirebaseFirestore.instance.collection('users').doc(user.uid).set(
-        {
-          key: value,
-          'updatedAt': FieldValue.serverTimestamp(),
-        },
-        SetOptions(merge: true),
-      );
+      await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
+        key: value,
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
     } on FirebaseException catch (error) {
-      if (!context.mounted) return;
-      context.snack(
-        error.message ?? 'Não foi possível salvar a preferência.',
-      );
+      if (context.mounted) {
+        context.snack(
+          error.message ?? 'Não foi possível salvar a preferência.',
+        );
+      }
     } catch (_) {
-      if (!context.mounted) return;
-      context.snack('Não foi possível salvar a preferência.');
+      if (context.mounted) {
+        context.snack(
+          'Não foi possível salvar a preferência.',
+        );
+      }
     }
   }
 
@@ -53,43 +52,29 @@ class PrivacyScreen extends StatelessWidget {
     if (user == null) {
       return const Scaffold(
         body: Center(
-          child: Text('Faça login para acessar suas preferências.'),
+          child: Text(
+            'Faça login para acessar suas preferências.',
+          ),
         ),
       );
     }
 
-    final userRef =
-        FirebaseFirestore.instance.collection('users').doc(user.uid);
+    final ref = FirebaseFirestore.instance.collection('users').doc(user.uid);
 
     return Scaffold(
       appBar: AppBar(
-        leading: IconButton(
-          onPressed: () => context.go('/settings'),
-          icon: const Icon(Icons.arrow_back_rounded),
-        ),
         title: const Text(
-          'Privacidade',
+          'Privacidade e notificações',
           style: TextStyle(fontWeight: FontWeight.w900),
         ),
       ),
       body: StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-        stream: userRef.snapshots(),
-        builder: (context, snapshot) {
+        stream: ref.snapshots(),
+        builder: (_, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting &&
               !snapshot.hasData) {
-            return const Center(child: CircularProgressIndicator());
-          }
-
-          if (snapshot.hasError) {
-            return Center(
-              child: Padding(
-                padding: const EdgeInsets.all(24),
-                child: Text(
-                  'Não foi possível carregar suas preferências.\n'
-                  '${snapshot.error}',
-                  textAlign: TextAlign.center,
-                ),
-              ),
+            return const Center(
+              child: CircularProgressIndicator(),
             );
           }
 
@@ -103,100 +88,106 @@ class PrivacyScreen extends StatelessWidget {
             String title,
             String subtitle,
             IconData icon,
-          ) {
-            return SwitchListTile(
-              secondary: Icon(icon, color: AppColors.primary),
-              value: value(key),
-              onChanged: (newValue) => _set(context, key, newValue),
-              title: Text(
-                title,
-                style: const TextStyle(fontWeight: FontWeight.w700),
-              ),
-              subtitle: Text(subtitle),
-            );
-          }
+          ) =>
+              SwitchListTile(
+                secondary: Icon(
+                  icon,
+                  color: AppColors.primary,
+                ),
+                value: value(key),
+                onChanged: (v) => _set(context, key, v),
+                title: Text(
+                  title,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                subtitle: Text(subtitle),
+              );
 
           return ListView(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 28),
+            padding: const EdgeInsets.all(16),
             children: [
-              const Padding(
-                padding: EdgeInsets.fromLTRB(8, 6, 8, 10),
-                child: Text(
-                  'Perfil',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w900,
-                  ),
+              const Text(
+                'Privacidade',
+                style: TextStyle(
+                  fontSize: 19,
+                  fontWeight: FontWeight.w900,
                 ),
               ),
               setting(
                 'showCity',
                 'Mostrar cidade',
-                'Exibe sua cidade no seu perfil público.',
+                'Exibe sua cidade no perfil público.',
                 Icons.location_on_outlined,
               ),
               setting(
                 'showActivities',
-                'Mostrar atividades no perfil',
-                'Exibe as atividades públicas que você organiza.',
+                'Mostrar atividades',
+                'Exibe suas atividades públicas.',
                 Icons.event_outlined,
               ),
               setting(
                 'allowInvites',
                 'Permitir convites',
-                'Permite receber convites para novas atividades.',
-                Icons.person_add_alt_1_outlined,
+                'Permite receber convites de atividade.',
+                Icons.person_add_alt_rounded,
               ),
               setting(
                 'allowMessages',
                 'Permitir mensagens',
-                'Controla novas interações de mensagem quando aplicável.',
+                'Permite novas conversas privadas.',
                 Icons.chat_bubble_outline_rounded,
               ),
               const Divider(height: 34),
-              const Padding(
-                padding: EdgeInsets.fromLTRB(8, 0, 8, 10),
-                child: Text(
-                  'Notificações',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w900,
-                  ),
+              const Text(
+                'Notificações',
+                style: TextStyle(
+                  fontSize: 19,
+                  fontWeight: FontWeight.w900,
                 ),
               ),
               setting(
-                'chatNotifications',
-                'Notificações de chat',
-                'Receber alertas de novas mensagens do grupo.',
-                Icons.notifications_active_outlined,
+                'directMessageNotifications',
+                'Mensagens privadas',
+                'Nova mensagem de outra pessoa.',
+                Icons.mark_chat_unread_outlined,
               ),
               setting(
-                'activityNotifications',
-                'Notificações de atividades',
-                'Receber solicitações, aprovações e alterações de atividades.',
-                Icons.event_available_outlined,
+                'groupMessageNotifications',
+                'Mensagens de grupo',
+                'Novas mensagens nas atividades.',
+                Icons.groups_outlined,
               ),
-              const SizedBox(height: 18),
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: AppColors.primaryLight,
-                  borderRadius: BorderRadius.circular(18),
-                ),
-                child: const Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Icon(Icons.lock_outline_rounded, color: AppColors.primary),
-                    SizedBox(width: 12),
-                    Expanded(
-                      child: Text(
-                        'Usuários bloqueados não podem gerar novas interações sociais para você. '
-                        'Atualizações importantes de atividades das quais você já participa continuam visíveis.',
-                        style: TextStyle(height: 1.4),
-                      ),
-                    ),
-                  ],
-                ),
+              setting(
+                'followerNotifications',
+                'Novos seguidores',
+                'Quando alguém começar a seguir você.',
+                Icons.person_add_outlined,
+              ),
+              setting(
+                'inviteNotifications',
+                'Convites',
+                'Convites e solicitações de atividades.',
+                Icons.mail_outline_rounded,
+              ),
+              setting(
+                'businessNotifications',
+                'Comércios seguidos',
+                'Novos posts, eventos e benefícios.',
+                Icons.storefront_outlined,
+              ),
+              setting(
+                'nearbyOpenSlotsNotifications',
+                'Vagas próximas',
+                'Vagas abertas perto de você.',
+                Icons.flash_on_outlined,
+              ),
+              setting(
+                'eventReminderNotifications',
+                'Lembretes de eventos',
+                'Lembretes antes de atividades e eventos.',
+                Icons.alarm_outlined,
               ),
             ],
           );

@@ -1,64 +1,146 @@
-# Juntaí — Status de implementação
+# Juntaí — Status Blueprint
 
-Atualizado em 03/09/2026.
+## Comércio
+- [x] perfil comercial completo
+- [x] @usuário comercial
+- [x] avatar e capa
+- [x] estado separado
+- [x] telefone
+- [x] Instagram
+- [x] rating preparado
+- [x] followersCount persistido
+- [x] galeria
+- [x] abas Publicações / Eventos / Fotos / Sobre
 
-## App Flutter
+## Publicações
+- [x] experience
+- [x] event
+- [x] open_slots
+- [x] promotion
+- [x] schedule
+- [x] preço normal
+- [x] preço Juntaí
+- [x] início/fim
+- [x] mínimo/máximo
+- [x] galeria
+- [x] vagas e ocupação
+- [x] cards específicos
 
-- [x] Splash, onboarding, autenticação e recuperação de senha
-- [x] Perfil, perfil público, seguir, bloquear e denunciar
-- [x] Home, pesquisa, filtros, mapa e localização
-- [x] Criar, editar e cancelar atividade
-- [x] Atividades públicas e privadas com solicitações
-- [x] Participantes e chat de grupo
-- [x] Conversas privadas entre usuários
-- [x] Foto em chat de grupo e privado
-- [x] Áudio em chat de grupo e privado enviado por URL (ImageKit via Render)
-- [x] Reprodução de áudio por URL com compatibilidade para áudios Base64 antigos
-- [x] Áudio de visualização única
-- [x] Editar mensagem de texto por até 15 minutos
-- [x] Excluir mensagem para mim
-- [x] Excluir mensagem para todos por até 48 horas
-- [x] Push para chat de grupo e mensagem privada
-- [x] Notificações, badge e navegação por push
-- [x] Permissões Android e iOS para microfone e mídia
+## Vagas
+- [x] 7/10 → faltam 3
+- [x] Eu vou
+- [x] horários disponíveis
+- [x] barra de ocupação
+- [x] Precisando de gente agora
+- [x] ranking por início/distância/vaga
 
-## Lugares, eventos e comércio
+## Benefícios
+- [x] percentage_discount
+- [x] fixed_discount
+- [x] free_item
+- [x] group_reward
+- [x] special_price
+- [x] priority_entry
+- [x] minParticipants
+- [x] desbloqueio automático
+- [x] código JUNTAI
+- [x] validação pelo comércio
+- [x] redeemedAt
+- [x] prevenção de reutilização
 
-- [x] Perfil comercial
-- [x] Edição de perfil comercial
-- [x] Fluxo de análise/aprovação comercial
-- [x] Publicação bloqueada enquanto o perfil não estiver aprovado
-- [x] Publicações comerciais e eventos
-- [x] Editar publicação
-- [x] Arquivar publicação
-- [x] Limite de publicações ativas por plano
-- [x] Limite mensal real por plano
-- [x] Métricas de impressão e abertura
-- [x] Métrica de atividades criadas a partir de uma descoberta
-- [x] Métrica de participantes gerados, com deduplicação por usuário/descoberta
-- [x] Descobertas ordenadas por proximidade quando a localização estiver disponível
-- [x] Seguir comércio, abrir site e rota externa
+## Métricas
+- [x] profileVisits
+- [x] followersGained
+- [x] wantToGoClicks
+- [x] shareCount
+- [x] slotsFilled
+- [x] couponUnlocks
+- [x] couponValidations
+- [x] conversão
+- [x] dashboard semanal
 
-## Backend e segurança
+## Monetização
+- [x] planos
+- [x] checkout Mercado Pago
+- [x] período de cobrança
+- [x] Premium
+- [x] campanha 24h
+- [x] campanha 3 dias
+- [x] campanha por cidade
+- [x] destaque patrocinado
 
-- [x] Backend canônico na raiz (`server.js`)
-- [x] Upload autenticado de imagem
-- [x] Upload autenticado de áudio
-- [x] Firebase Admin usando variáveis de ambiente
-- [x] Firestore Rules para mensagens por URL
-- [x] Regras para edição e exclusão temporizadas de mensagens
-- [x] Regras para visualização única
-- [x] Push de mensagens privadas e de grupos
-- [x] Métricas comerciais protegidas pelo backend
-- [x] Reports, bloqueios e exclusão de conta
+## Social
+- [x] follow/unfollow backend
+- [x] followersCount/followingCount
+- [x] Seguidores
+- [x] Seguindo
+- [x] push new_follower
+- [x] change-username
 
-## Antes de publicar nas lojas
+## Notificações
+- [x] mensagem privada
+- [x] grupo
+- [x] novo seguidor
+- [x] convite
+- [x] comércio seguido
+- [x] vagas próximas
+- [x] event_reminder
+- [x] group_discount_unlocked
+- [x] activity_full preparado
 
-- [ ] Confirmar `GoogleService-Info.plist` no iOS
-- [ ] Confirmar Google Maps API key Android/iOS se Maps real for usado
-- [ ] Confirmar providers Google/Apple no Firebase
-- [ ] Confirmar assinatura release Android/iOS
-- [ ] Executar `flutter analyze`
-- [ ] Executar `flutter test`
-- [ ] Gerar e testar APK/AAB release em dispositivo real
-- [ ] Testar microfone, foto, push e chat com duas contas em dois aparelhos
+## Interesses
+- [x] whitelist canônica
+- [x] migração de MÃºsica → Música
+- [x] remoção fora da lista
+
+## Deep links
+- [x] activity
+- [x] business
+- [x] discovery
+- [x] profile
+- [x] benefit
+- [x] message
+- [x] followers
+- [x] following
+- [x] activity/from-post
+
+## Navegação
+- [x] Descobrir como área principal
+
+## Instituições
+- [x] commerce
+- [x] organizer
+- [x] institution
+- [x] institutionType
+- [x] aprovação administrativa
+
+## Moderação
+- [x] user
+- [x] business
+- [x] business_post
+- [x] activity
+- [x] direct_message
+- [x] group_message
+- [x] portal admin
+
+## Chat
+- [x] privado pelo backend
+- [x] áudio
+- [x] segurar/gravar
+- [x] arrastar para cancelar
+- [x] arrastar para cima e travar
+- [x] Enviada
+- [x] Entregue
+- [x] Visualizada
+
+## Apple
+- [x] código Flutter implementado
+- [ ] ativar Apple no Firebase/Apple Developer
+
+## Configurações externas
+- [ ] MERCADO_PAGO_ACCESS_TOKEN
+- [ ] ADMIN_EMAILS
+- [ ] CRON_SECRET
+- [ ] ativar Apple
+- [ ] testar pagamento real
+- [ ] testar em duas contas/aparelhos

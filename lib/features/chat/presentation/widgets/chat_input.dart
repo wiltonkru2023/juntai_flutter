@@ -58,18 +58,14 @@ class _ChatInputState extends State<ChatInput> {
   @override
   void didUpdateWidget(covariant ChatInput oldWidget) {
     super.didUpdateWidget(oldWidget);
+
     if (oldWidget.controller != widget.controller) {
       oldWidget.controller.removeListener(_refresh);
       widget.controller.addListener(_refresh);
     }
 
     if (!widget.recording && oldWidget.recording) {
-      locked = false;
-      gestureActive = false;
-      cancelled = false;
-      released = false;
-      pointer = null;
-      origin = null;
+      _reset();
     }
   }
 
@@ -104,12 +100,13 @@ class _ChatInputState extends State<ChatInput> {
     }
 
     final started = await widget.onRecordStart();
+
     if (!started) {
       _reset();
       return;
     }
 
-    // O usuario pode soltar o dedo enquanto a permissao/gravadocao inicia.
+    // O dedo pode ser solto enquanto a permissão/gravação inicia.
     if (released) {
       if (locked) {
         gestureActive = false;
@@ -123,12 +120,15 @@ class _ChatInputState extends State<ChatInput> {
       } else {
         await widget.onRecordStop();
       }
+
       _reset();
     }
   }
 
   void _move(PointerMoveEvent event) {
-    if (event.pointer != pointer || origin == null || cancelled) return;
+    if (event.pointer != pointer || origin == null || cancelled) {
+      return;
+    }
 
     final dx = event.position.dx - origin!.dx;
     final dy = event.position.dy - origin!.dy;
@@ -147,13 +147,14 @@ class _ChatInputState extends State<ChatInput> {
   }
 
   Future<void> _finish(PointerEvent event) async {
-    if (event.pointer != pointer || !gestureActive) return;
+    if (event.pointer != pointer || !gestureActive) {
+      return;
+    }
 
     released = true;
     pointer = null;
     origin = null;
 
-    // Se o recorder ainda esta iniciando, _down conclui a acao depois.
     if (!widget.recording) return;
 
     if (locked) {
@@ -173,13 +174,17 @@ class _ChatInputState extends State<ChatInput> {
   }
 
   Future<void> _sendLocked() async {
-    if (!locked || !widget.recording || widget.sending) return;
+    if (!locked || !widget.recording || widget.sending) {
+      return;
+    }
+
     await widget.onRecordStop();
     _reset();
   }
 
   Future<void> _cancelLocked() async {
     if (!locked || !widget.recording) return;
+
     await widget.onRecordCancel();
     _reset();
   }
@@ -191,12 +196,14 @@ class _ChatInputState extends State<ChatInput> {
     released = false;
     cancelled = false;
     locked = false;
+
     if (mounted) setState(() {});
   }
 
   String get time {
     final minutes = widget.recordingSeconds ~/ 60;
     final seconds = widget.recordingSeconds % 60;
+
     return '${minutes.toString().padLeft(2, '0')}:'
         '${seconds.toString().padLeft(2, '0')}';
   }
@@ -204,6 +211,7 @@ class _ChatInputState extends State<ChatInput> {
   @override
   Widget build(BuildContext context) {
     final hasText = widget.controller.text.trim().isNotEmpty;
+
     final recordingUi = widget.recording || gestureActive || locked;
 
     return Container(
@@ -228,7 +236,9 @@ class _ChatInputState extends State<ChatInput> {
                             Expanded(
                               child: Container(
                                 decoration: BoxDecoration(
-                                  border: Border.all(color: AppColors.border),
+                                  border: Border.all(
+                                    color: AppColors.border,
+                                  ),
                                   borderRadius: BorderRadius.circular(28),
                                 ),
                                 child: Row(
@@ -268,15 +278,19 @@ class _ChatInputState extends State<ChatInput> {
                                       onPressed: widget.uploadingImage
                                           ? null
                                           : widget.onImage,
-                                      icon:
-                                          const Icon(Icons.attach_file_rounded),
+                                      icon: const Icon(
+                                        Icons.attach_file_rounded,
+                                      ),
                                     ),
                                   ],
                                 ),
                               ),
                             ),
                             const SizedBox(width: 8),
-                            const SizedBox(width: 48, height: 48),
+                            const SizedBox(
+                              width: 48,
+                              height: 48,
+                            ),
                           ],
                         ),
                       ),
@@ -289,7 +303,7 @@ class _ChatInputState extends State<ChatInput> {
                         children: [
                           if (locked)
                             IconButton(
-                              tooltip: 'Excluir gravacao',
+                              tooltip: 'Excluir gravação',
                               onPressed: _cancelLocked,
                               icon: const Icon(
                                 Icons.delete_outline_rounded,
@@ -309,7 +323,9 @@ class _ChatInputState extends State<ChatInput> {
                             child: Text(
                               time,
                               style: const TextStyle(
-                                fontFeatures: [FontFeature.tabularFigures()],
+                                fontFeatures: [
+                                  FontFeature.tabularFigures(),
+                                ],
                                 fontWeight: FontWeight.w800,
                                 color: AppColors.error,
                               ),
@@ -318,10 +334,10 @@ class _ChatInputState extends State<ChatInput> {
                           Expanded(
                             child: Text(
                               locked
-                                  ? 'Gravacao travada'
+                                  ? 'Gravação travada'
                                   : cancelled
                                       ? 'Solte para excluir'
-                                      : 'â† cancelar   â†‘ travar',
+                                      : '← cancelar   ↑ travar',
                               textAlign: TextAlign.center,
                               overflow: TextOverflow.ellipsis,
                               style: TextStyle(
@@ -338,7 +354,7 @@ class _ChatInputState extends State<ChatInput> {
                           ),
                           IconButton(
                             tooltip: widget.viewOnceAudio
-                                ? 'Ouvir uma vez'
+                                ? 'Ouvir uma vez ativo'
                                 : 'Ativar ouvir uma vez',
                             onPressed: () => widget.onViewOnceChanged(
                               !widget.viewOnceAudio,
@@ -363,7 +379,7 @@ class _ChatInputState extends State<ChatInput> {
                             color: AppColors.primary,
                             shape: const CircleBorder(),
                             child: IconButton(
-                              tooltip: 'Enviar audio',
+                              tooltip: 'Enviar áudio',
                               onPressed: widget.sending ? null : _sendLocked,
                               icon: const Icon(
                                 Icons.send_rounded,

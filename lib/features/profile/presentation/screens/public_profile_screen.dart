@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import '../../../../app/theme/app_colors.dart';
 import '../../../../core/extensions/context_extensions.dart';
 import '../../../../core/services/api_service.dart';
+import '../../../../core/services/interest_service.dart';
 import '../../../../core/widgets/app_avatar.dart';
 import '../../../../shared/enums/activity_category.dart';
 import '../../../../shared/models/activity.dart';
@@ -161,8 +162,8 @@ class PublicProfileScreen extends StatelessWidget {
         final verified = data['verified'] == true;
         final rating = (data['rating'] as num?)?.toDouble() ?? 0;
         final interests = data['interests'] is List
-            ? List<String>.from(
-                (data['interests'] as List).map((item) => item.toString()),
+            ? InterestService.normalizeList(
+                data['interests'] as List,
               )
             : <String>[];
         final showCity = data['showCity'] != false;
@@ -435,30 +436,36 @@ class _SocialActions extends StatelessWidget {
 class _FollowStats extends StatelessWidget {
   const _FollowStats({required this.userId});
   final String userId;
+
   @override
   Widget build(BuildContext context) =>
-      Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-        StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-          stream: FirebaseFirestore.instance
-              .collection('users')
-              .doc(userId)
-              .collection('followers')
-              .snapshots(),
-          builder: (_, s) => Text('${s.data?.size ?? 0} seguidores',
-              style: const TextStyle(fontWeight: FontWeight.w700)),
-        ),
-        const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 12), child: Text('•')),
-        StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-          stream: FirebaseFirestore.instance
-              .collection('users')
-              .doc(userId)
-              .collection('following')
-              .snapshots(),
-          builder: (_, s) => Text('${s.data?.size ?? 0} seguindo',
-              style: const TextStyle(fontWeight: FontWeight.w700)),
-        ),
-      ]);
+      StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+        stream: FirebaseFirestore.instance
+            .collection('users')
+            .doc(userId)
+            .snapshots(),
+        builder: (_, snapshot) {
+          final d = snapshot.data?.data() ?? const <String, dynamic>{};
+
+          final followers = (d['followersCount'] as num?)?.toInt() ?? 0;
+          final following = (d['followingCount'] as num?)?.toInt() ?? 0;
+
+          return Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              TextButton(
+                onPressed: () => context.push('/followers/$userId'),
+                child: Text('$followers seguidores'),
+              ),
+              const Text('•'),
+              TextButton(
+                onPressed: () => context.push('/following/$userId'),
+                child: Text('$following seguindo'),
+              ),
+            ],
+          );
+        },
+      );
 }
 
 class _PublicActivities extends StatelessWidget {

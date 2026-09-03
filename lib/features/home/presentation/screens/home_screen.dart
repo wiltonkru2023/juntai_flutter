@@ -14,6 +14,7 @@ import '../../../discoveries/presentation/widgets/post_metric_tracker.dart';
 import '../widgets/activity_card.dart';
 import '../widgets/category_row.dart';
 import '../widgets/home_header.dart';
+import '../widgets/urgent_open_slots_section.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({
@@ -199,6 +200,9 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
                 SliverToBoxAdapter(
                   child: _DiscoveriesPreview(position: currentPosition),
+                ),
+                SliverToBoxAdapter(
+                  child: UrgentOpenSlotsSection(position: currentPosition),
                 ),
                 SliverToBoxAdapter(
                   child: Padding(

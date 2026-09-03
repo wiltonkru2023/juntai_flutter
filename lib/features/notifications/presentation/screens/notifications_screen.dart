@@ -51,6 +51,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
               body: (data['body'] ?? '').toString(),
               activityId: data['activityId']?.toString(),
               actorId: data['actorId']?.toString(),
+              route: data['route']?.toString(),
               read: data['read'] == true,
               createdAt:
                   (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
@@ -138,7 +139,14 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
 
     if (!mounted) return;
 
-    if (notification.type == 'private_message') {
+    final explicitRoute = notification.route;
+    if (explicitRoute != null && explicitRoute.isNotEmpty) {
+      context.push(explicitRoute);
+      return;
+    }
+
+    if (notification.type == 'private_message' ||
+        notification.type == 'new_direct_message') {
       final actorId = notification.actorId;
       if (actorId != null && actorId.isNotEmpty) {
         context.push('/message/$actorId');

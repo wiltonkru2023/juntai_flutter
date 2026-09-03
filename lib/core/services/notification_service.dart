@@ -344,11 +344,18 @@ class NotificationService {
   }
 
   String _routeFor(RemoteMessage message) {
+    final explicitRoute = message.data['route']?.toString();
+    if (explicitRoute != null && explicitRoute.isNotEmpty) {
+      return explicitRoute;
+    }
+
     final activityId = message.data['activityId']?.toString();
     final actorId = message.data['actorId']?.toString();
     final type = message.data['type']?.toString();
 
-    if (type == 'private_message' && actorId != null && actorId.isNotEmpty) {
+    if ((type == 'private_message' || type == 'new_direct_message') &&
+        actorId != null &&
+        actorId.isNotEmpty) {
       return '/message/$actorId';
     }
 

@@ -34,6 +34,7 @@ class FirebaseNotificationRepository implements NotificationRepository {
                 body: (data['body'] ?? '').toString(),
                 activityId: data['activityId']?.toString(),
                 actorId: data['actorId']?.toString(),
+                route: data['route']?.toString(),
                 read: data['read'] == true,
                 createdAt: (data['createdAt'] as Timestamp?)?.toDate() ??
                     DateTime.now(),
