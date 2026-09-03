@@ -229,6 +229,50 @@ app.get('/health', (_req, res) => {
   res.json({ ok: true });
 });
 
+app.get('/.well-known/assetlinks.json', (_req, res) => {
+  res.type('application/json').send([{
+    relation: ['delegate_permission/common.handle_all_urls'],
+    target: {
+      namespace: 'android_app',
+      package_name: 'app.juntai.juntai',
+      sha256_cert_fingerprints: [process.env.ANDROID_SHA256_CERT_FINGERPRINT || 'F2:7F:06:12:E3:6A:3E:BA:9B:F9:B7:27:50:88:69:54:1B:34:4C:F4:52:82:55:F9:0E:4B:B1:FC:D8:79:40:36'],
+    },
+  }]);
+});
+
+function escapeHtml(value) {
+  return String(value ?? '').replace(/[&<>'"]/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' })[char]);
+}
+
+app.get('/activity/:id', async (req, res, next) => {
+  try {
+    const activity = await db.collection('activities').doc(requiredString(req.params.id, 'id', 200)).get();
+    if (!activity.exists) throw new ApiError(404, 'not-found', 'Atividade não encontrada.');
+    const data = activity.data() || {};
+    const title = escapeHtml(data.title || 'Atividade no Juntaí');
+    const address = escapeHtml(data.address || '');
+    const appUrl = `juntai:///activity/${encodeURIComponent(activity.id)}`;
+    res.type('html').send(`<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${title} • Juntaí</title><style>body{font-family:system-ui;background:#f7f5ff;margin:0;display:grid;place-items:center;min-height:100vh;color:#211a35}.card{background:white;padding:32px;border-radius:24px;max-width:520px;box-shadow:0 16px 50px #3210a522;text-align:center}a{display:inline-block;background:#6425e8;color:white;padding:14px 24px;border-radius:14px;text-decoration:none;font-weight:700}</style></head><body><main class="card"><h1>Juntaí</h1><h2>${title}</h2><p>${address}</p><a href="${appUrl}">Abrir no Juntaí</a></main></body></html>`);
+  } catch (error) { next(error); }
+});
+
+app.post('/reserve-username', authenticate, async (req, res, next) => {
+  try {
+    const uid = req.user.uid;
+    const username = requiredString(req.body?.username, 'username', 20).toLowerCase();
+    if (username.length < 3 || !/^[a-z][a-z0-9_]*(\.[a-z0-9_]+)*$/.test(username)) {
+      throw new ApiError(400, 'invalid-username', 'Use letras, números, ponto ou _, começando por uma letra.');
+    }
+    const ref = db.collection('usernames').doc(username);
+    await db.runTransaction(async (transaction) => {
+      const current = await transaction.get(ref);
+      if (current.exists && String(current.data()?.uid) !== uid) throw new ApiError(409, 'username-taken', 'Este @usuário já está em uso.');
+      transaction.set(ref, { uid, createdAt: current.data()?.createdAt || FieldValue.serverTimestamp() });
+    });
+    res.json({ ok: true, username });
+  } catch (error) { next(error); }
+});
+
 
 app.post('/upload-image', authenticate, async (req, res, next) => {
   try {
@@ -246,7 +290,7 @@ app.post('/upload-image', authenticate, async (req, res, next) => {
     const requestedName = optionalString(req.body?.fileName, 160);
     const mimeType = optionalString(req.body?.mimeType, 80).toLowerCase();
 
-    if (!['profile', 'activity', 'chat'].includes(purpose)) {
+    if (!['profile', 'activity', 'chat', 'discovery'].includes(purpose)) {
       throw new ApiError(400, 'invalid-argument', 'Destino de imagem inválido.');
     }
 
@@ -378,6 +422,82 @@ app.post('/upload-image', authenticate, async (req, res, next) => {
 
     next(error);
   }
+});
+
+app.post('/create-business', authenticate, async (req, res, next) => {
+  try {
+    const uid = req.user.uid;
+    const ref = db.collection('business_profiles').doc(uid);
+    if ((await ref.get()).exists) throw new ApiError(409, 'already-exists', 'Você já possui um perfil comercial.');
+    const latitude = Number(req.body?.latitude);
+    const longitude = Number(req.body?.longitude);
+    if (!Number.isFinite(latitude) || latitude < -90 || latitude > 90 || !Number.isFinite(longitude) || longitude < -180 || longitude > 180) throw new ApiError(400, 'invalid-location', 'Localização inválida.');
+    await ref.set({
+      ownerId: uid,
+      name: requiredString(req.body?.name, 'name', 80),
+      category: requiredString(req.body?.category, 'category', 50),
+      city: requiredString(req.body?.city, 'city', 80),
+      address: requiredString(req.body?.address, 'address', 250),
+      latitude, longitude,
+      websiteUrl: optionalString(req.body?.websiteUrl, 500),
+      description: optionalString(req.body?.description, 800),
+      verified: false, reviewStatus: 'pending', plan: 'free',
+      monthlyPostLimit: 1, activePostLimit: 1, postsUsedThisMonth: 0,
+      createdAt: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp(),
+    });
+    res.json({ ok: true, businessId: uid });
+  } catch (error) { next(error); }
+});
+
+app.post('/create-business-post', authenticate, async (req, res, next) => {
+  try {
+    const uid = req.user.uid;
+    const businessRef = db.collection('business_profiles').doc(uid);
+    const businessSnapshot = await businessRef.get();
+    if (!businessSnapshot.exists) throw new ApiError(412, 'business-required', 'Crie seu perfil comercial primeiro.');
+    const business = businessSnapshot.data() || {};
+    const active = await db.collection('discoveries').where('businessId', '==', uid).where('status', '==', 'published').get();
+    const activeLimit = Number(business.activePostLimit || 1);
+    if (active.size >= activeLimit) throw new ApiError(409, 'plan-limit', 'Seu plano atingiu o limite de publicações ativas.');
+    const type = optionalString(req.body?.type, 30) || 'experience';
+    if (!['experience', 'event', 'open_slots', 'promotion', 'schedule'].includes(type)) throw new ApiError(400, 'invalid-type', 'Tipo de publicação inválido.');
+    const startsAt = req.body?.eventStartsAt ? parseDate(req.body.eventStartsAt, 'eventStartsAt') : null;
+    const ref = db.collection('discoveries').doc();
+    await db.runTransaction(async (transaction) => {
+      transaction.set(ref, {
+        businessId: uid, businessName: String(business.name), businessCategory: String(business.category), businessVerified: business.verified === true,
+        type, title: requiredString(req.body?.title, 'title', 120), description: requiredString(req.body?.description, 'description', 1200),
+        coverUrl: requiredString(req.body?.coverUrl, 'coverUrl', 500), address: String(business.address), latitude: Number(business.latitude), longitude: Number(business.longitude), websiteUrl: optionalString(business.websiteUrl, 500),
+        groupBenefit: optionalString(req.body?.groupBenefit, 300), ctaLabel: requiredString(req.body?.ctaLabel || 'Criar atividade aqui', 'ctaLabel', 40),
+        officialEvent: req.body?.officialEvent === true, eventStartsAt: startsAt ? Timestamp.fromDate(startsAt) : null,
+        sponsored: false, status: 'published', views: 0, opens: 0, activitiesCreated: 0, participantsGenerated: 0,
+        createdAt: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp(),
+      });
+      transaction.update(businessRef, { postsUsedThisMonth: FieldValue.increment(1), updatedAt: FieldValue.serverTimestamp() });
+    });
+    res.json({ ok: true, postId: ref.id });
+  } catch (error) { next(error); }
+});
+
+app.post('/business-post-view', authenticate, async (req, res, next) => {
+  try {
+    const uid = req.user.uid;
+    const postId = requiredString(req.body?.postId, 'postId', 200);
+    const event = requiredString(req.body?.event, 'event', 20);
+    if (!['impression', 'open'].includes(event)) throw new ApiError(400, 'invalid-event', 'Métrica inválida.');
+    const postRef = db.collection('discoveries').doc(postId);
+    const markerRef = postRef.collection('metric_users').doc(`${uid}_${event}`);
+    let counted = false;
+    await db.runTransaction(async (transaction) => {
+      const [post, marker] = await Promise.all([transaction.get(postRef), transaction.get(markerRef)]);
+      if (!post.exists) throw new ApiError(404, 'not-found', 'Publicação não encontrada.');
+      if (marker.exists) return;
+      transaction.set(markerRef, { userId: uid, event, createdAt: FieldValue.serverTimestamp() });
+      transaction.update(postRef, { [event === 'open' ? 'opens' : 'views']: FieldValue.increment(1) });
+      counted = true;
+    });
+    res.json({ ok: true, counted });
+  } catch (error) { next(error); }
 });
 
 
