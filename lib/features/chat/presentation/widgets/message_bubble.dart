@@ -16,11 +16,13 @@ class MessageBubble extends StatelessWidget {
     required this.message,
     this.onAudioConsumed,
     this.onOptions,
+    this.showDeliveryStatus = false,
   });
 
   final ChatMessage message;
   final Future<void> Function()? onAudioConsumed;
   final VoidCallback? onOptions;
+  final bool showDeliveryStatus;
 
   @override
   Widget build(BuildContext context) {
@@ -43,6 +45,12 @@ class MessageBubble extends StatelessWidget {
         ),
       );
     }
+
+    final deliveryLabel = message.seenBy.length > 1
+        ? 'Visualizada'
+        : message.deliveredTo.length > 1
+            ? 'Entregue'
+            : 'Enviada';
 
     final bubble = GestureDetector(
       behavior: HitTestBehavior.opaque,
@@ -113,6 +121,19 @@ class MessageBubble extends StatelessWidget {
                         ? AppColors.blue
                         : AppColors.textSecondary,
                   ),
+                  if (showDeliveryStatus) ...[
+                    const SizedBox(width: 4),
+                    Text(
+                      deliveryLabel,
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w600,
+                        color: message.seenBy.length > 1
+                            ? AppColors.blue
+                            : AppColors.textSecondary,
+                      ),
+                    ),
+                  ],
                 ],
               ],
             ),

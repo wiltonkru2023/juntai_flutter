@@ -225,6 +225,20 @@ class ApiService {
         },
       );
 
+  Future<Map<String, dynamic>> sendPrivateMessage({
+    required String otherUserId,
+    required Map<String, dynamic> message,
+    required String preview,
+  }) =>
+      post(
+        '/send-private-message',
+        body: {
+          'otherUserId': otherUserId,
+          'message': message,
+          'preview': preview,
+        },
+      );
+
   Future<Map<String, dynamic>> notifyPrivateMessage({
     required String conversationId,
     required String messageId,

@@ -63,36 +63,21 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     Map<String, dynamic> message,
     String preview,
   ) async {
-    final now = FieldValue.serverTimestamp();
-    final exists = (await conversation.get()).exists;
-    final batch = FirebaseFirestore.instance.batch();
-    final messageRef = conversation.collection('messages').doc();
-
-    batch.set(
-      conversation,
-      {
-        'participants': [uid, widget.otherUserId],
-        'updatedAt': now,
-        if (!exists) 'createdAt': now,
-        'lastMessage': preview,
-        'lastSenderId': uid,
-        'lastMessageId': messageRef.id,
-      },
-      SetOptions(merge: true),
+    final result = await ApiService.instance.sendPrivateMessage(
+      otherUserId: widget.otherUserId,
+      message: message,
+      preview: preview,
     );
 
-    batch.set(messageRef, {
-      ...message,
-      'senderId': uid,
-      'createdAt': now,
-      'deliveredTo': [uid],
-      'seenBy': [uid],
-      'hiddenFor': <String>[],
-      'deletedForEveryone': false,
-    });
+    final messageId = (result['messageId'] ?? '').toString().trim();
+    if (messageId.isEmpty) {
+      throw const ApiException(
+        message: 'O servidor nao retornou a mensagem enviada.',
+        code: 'invalid-private-message-response',
+      );
+    }
 
-    await batch.commit();
-    return messageRef.id;
+    return messageId;
   }
 
   Future<void> _notifyPrivate(String messageId) async {
@@ -376,7 +361,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
           'text': selected.title,
           'activityId': selected.id,
           'activityTitle': selected.title,
-          'activityStartsAt': Timestamp.fromDate(selected.startsAt),
+          'activityStartsAt': selected.startsAt.toUtc().toIso8601String(),
         },
         '📅 ${selected.title}',
       );
@@ -688,6 +673,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
 
                           return MessageBubble(
                             message: message,
+                            showDeliveryStatus: true,
                             onOptions: () =>
                                 _showMessageActions(doc.reference, message),
                             onAudioConsumed: message.viewOnce && !message.mine

@@ -1709,6 +1709,171 @@ app.post('/record-discovery-participant', authenticate, async (req, res, next) =
   }
 });
 
+app.post('/send-private-message', authenticate, async (req, res, next) => {
+  try {
+    const uid = req.user.uid;
+    const otherUid = requiredString(req.body?.otherUserId, 'otherUserId', 200);
+
+    if (otherUid === uid) {
+      throw new ApiError(400, 'invalid-recipient', 'Escolha outro usuario para conversar.');
+    }
+    if (await blockedEither(uid, otherUid)) {
+      throw new ApiError(
+        403,
+        'blocked',
+        'Nao e possivel enviar mensagens entre usuarios bloqueados.',
+      );
+    }
+
+    const targetProfile = await db.collection('users').doc(otherUid).get();
+    if (!targetProfile.exists) {
+      throw new ApiError(404, 'user-not-found', 'Usuario nao encontrado.');
+    }
+
+    const raw = req.body?.message;
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
+      throw new ApiError(400, 'invalid-message', 'Mensagem invalida.');
+    }
+
+    const type = requiredString(raw.type, 'type', 20);
+    if (!['text', 'image', 'audio', 'activity'].includes(type)) {
+      throw new ApiError(400, 'invalid-message-type', 'Tipo de mensagem invalido.');
+    }
+
+    const ids = [uid, otherUid].sort();
+    const conversationId = `${ids[0]}_${ids[1]}`;
+    const conversationRef = db.collection('private_conversations').doc(conversationId);
+    const messageRef = conversationRef.collection('messages').doc();
+
+    const message = {
+      senderId: uid,
+      type,
+      text: '',
+      createdAt: FieldValue.serverTimestamp(),
+      deliveredTo: [uid],
+      seenBy: [uid],
+      hiddenFor: [],
+      deletedForEveryone: false,
+    };
+
+    let preview = optionalString(req.body?.preview, 180);
+
+    if (type === 'text') {
+      message.text = requiredString(raw.text, 'text', 4000);
+      preview = preview || message.text.slice(0, 180);
+    }
+
+    if (type === 'image') {
+      const mediaUrl = optionalHttpUrl(raw.mediaUrl, 'mediaUrl', 2048);
+      if (!mediaUrl) {
+        throw new ApiError(400, 'invalid-image', 'A foto enviada nao possui URL valida.');
+      }
+      message.mediaUrl = mediaUrl;
+      preview = preview || 'Foto';
+    }
+
+    if (type === 'audio') {
+      const audioUrl = optionalHttpUrl(raw.audioUrl, 'audioUrl', 2048);
+      if (!audioUrl) {
+        throw new ApiError(400, 'invalid-audio', 'O audio enviado nao possui URL valida.');
+      }
+
+      const durationMs = Number(raw.audioDurationMs);
+      if (!Number.isInteger(durationMs) || durationMs < 1 || durationMs > 60000) {
+        throw new ApiError(400, 'invalid-audio-duration', 'Duracao de audio invalida.');
+      }
+
+      const mimeType = optionalString(raw.audioMimeType, 40) || 'audio/mp4';
+      if (!['audio/mp4', 'audio/m4a', 'audio/x-m4a', 'audio/aac'].includes(mimeType)) {
+        throw new ApiError(400, 'invalid-audio-type', 'Formato de audio invalido.');
+      }
+
+      message.audioUrl = audioUrl;
+      message.audioMimeType = mimeType;
+      message.audioDurationMs = durationMs;
+      message.viewOnce = raw.viewOnce === true;
+      preview = preview || 'Audio';
+    }
+
+    if (type === 'activity') {
+      const activityId = requiredString(raw.activityId, 'activityId', 200);
+      const activitySnapshot = await db.collection('activities').doc(activityId).get();
+
+      if (!activitySnapshot.exists) {
+        throw new ApiError(404, 'activity-not-found', 'Atividade nao encontrada.');
+      }
+
+      const activity = activitySnapshot.data() || {};
+      if (activity.status !== 'active') {
+        throw new ApiError(412, 'activity-unavailable', 'Atividade indisponivel.');
+      }
+
+      if (activity.isPrivate === true && String(activity.creatorId || '') !== uid) {
+        const membership = await activitySnapshot.ref
+          .collection('participants')
+          .doc(uid)
+          .get();
+        if (!membership.exists) {
+          throw new ApiError(
+            403,
+            'permission-denied',
+            'Voce nao pode compartilhar esta atividade privada.',
+          );
+        }
+      }
+
+      const activityTitle = String(activity.title || 'Atividade').slice(0, 180);
+      message.text = activityTitle;
+      message.activityId = activityId;
+      message.activityTitle = activityTitle;
+      if (activity.startsAt) {
+        message.activityStartsAt = activity.startsAt;
+      }
+      preview = preview || `Atividade: ${activityTitle}`.slice(0, 180);
+    }
+
+    await db.runTransaction(async (transaction) => {
+      const current = await transaction.get(conversationRef);
+
+      if (current.exists) {
+        const currentParticipants = Array.isArray(current.data()?.participants)
+          ? current.data().participants.map(String).sort()
+          : [];
+
+        if (
+          currentParticipants.length !== 2 ||
+          currentParticipants[0] !== ids[0] ||
+          currentParticipants[1] !== ids[1]
+        ) {
+          throw new ApiError(409, 'invalid-conversation', 'Conversa privada invalida.');
+        }
+      }
+
+      transaction.set(
+        conversationRef,
+        {
+          participants: ids,
+          updatedAt: FieldValue.serverTimestamp(),
+          ...(current.exists ? {} : { createdAt: FieldValue.serverTimestamp() }),
+          lastMessage: (preview || 'Nova mensagem').slice(0, 180),
+          lastSenderId: uid,
+          lastMessageId: messageRef.id,
+        },
+        { merge: true },
+      );
+
+      transaction.set(messageRef, message);
+    });
+
+    res.json({
+      ok: true,
+      conversationId,
+      messageId: messageRef.id,
+    });
+  } catch (error) {
+    next(error);
+  }
+});
 app.post('/notify-private-message', authenticate, async (req, res, next) => {
   try {
     const uid = req.user.uid;
