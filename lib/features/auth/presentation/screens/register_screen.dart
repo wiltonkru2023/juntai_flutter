@@ -14,7 +14,9 @@ import '../../../../core/widgets/app_text_field.dart';
 import '../../../../core/widgets/juntai_logo.dart';
 
 class RegisterScreen extends ConsumerStatefulWidget {
-  const RegisterScreen({super.key});
+  const RegisterScreen({super.key, this.accountKind = 'personal'});
+
+  final String accountKind;
 
   @override
   ConsumerState<RegisterScreen> createState() => _RegisterScreenState();
@@ -36,6 +38,18 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   bool privacy = false;
   bool obscure = true;
   bool loading = false;
+
+  bool get commercialSignup => widget.accountKind != 'personal';
+
+  String get _accountLabel {
+    return switch (widget.accountKind) {
+      'professional' => 'profissional',
+      'organizer' => 'organização',
+      'institution' => 'instituição',
+      'business' => 'comércio',
+      _ => 'pessoal',
+    };
+  }
 
   @override
   void dispose() {
@@ -153,10 +167,12 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
           'longitude': longitude,
           'birthDate': Timestamp.fromDate(birth!),
 
-          // Perfil será completado na próxima tela.
+          // Perfil pessoal só é obrigatório para contas pessoais.
           'bio': '',
           'interests': <String>[],
           'photoUrl': '',
+          'accountMode': commercialSignup ? 'commercial' : 'personal',
+          'commercialSignupType': commercialSignup ? widget.accountKind : null,
 
           // Dados iniciais do perfil.
           'verified': false,
@@ -171,6 +187,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
           'allowMessages': true,
           'chatNotifications': true,
           'activityNotifications': true,
+          'profileCompleted': commercialSignup,
 
           // Controle.
           'accountStatus': 'active',
@@ -181,8 +198,11 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
 
       if (!mounted) return;
 
-      // 5. Segue para completar bio/interesses/foto.
-      context.go('/complete-profile');
+      if (commercialSignup) {
+        context.go('/business/create?type=${widget.accountKind}');
+      } else {
+        context.go('/complete-profile');
+      }
     } on FirebaseAuthException catch (e) {
       if (!mounted) return;
 
@@ -290,10 +310,12 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
               ),
             ),
             const SizedBox(height: 6),
-            const Text(
-              'Leva menos de um minuto.',
+            Text(
+              commercialSignup
+                  ? 'Cadastro de $_accountLabel, separado do perfil pessoal.'
+                  : 'Seu perfil pessoal para participar de atividades.',
               textAlign: TextAlign.center,
-              style: TextStyle(
+              style: const TextStyle(
                 color: AppColors.textSecondary,
                 fontSize: 16,
               ),
@@ -301,7 +323,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
             const SizedBox(height: 24),
             AppTextField(
               controller: name,
-              hint: 'Nome completo',
+              hint: commercialSignup ? 'Nome do responsável' : 'Nome completo',
               prefixIcon: Icons.person_outline_rounded,
               textCapitalization: TextCapitalization.words,
             ),
@@ -409,7 +431,11 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
             ),
             const SizedBox(height: 8),
             AppButton(
-              label: loading ? 'Criando conta...' : 'Criar conta',
+              label: loading
+                  ? 'Criando conta...'
+                  : commercialSignup
+                      ? 'Continuar cadastro de $_accountLabel'
+                      : 'Criar conta pessoal',
               onPressed: loading ? null : submit,
             ),
             TextButton(

@@ -40,7 +40,15 @@ class OnboardingScreen extends StatelessWidget {
                   flex: 5,
                   child: Center(child: PeopleIllustration(height: 280))),
               AppButton(
-                  label: 'Começar', onPressed: () => context.go('/register')),
+                label: 'Criar perfil pessoal',
+                onPressed: () => context.go('/register?type=personal'),
+              ),
+              const SizedBox(height: 10),
+              OutlinedButton.icon(
+                onPressed: () => context.go('/register?type=business'),
+                icon: const Icon(Icons.storefront_rounded),
+                label: const Text('Cadastrar comércio ou profissional'),
+              ),
               const SizedBox(height: 10),
               TextButton(
                   onPressed: () => context.go('/login'),

@@ -42,28 +42,13 @@ class AppBottomNav extends StatelessWidget {
   Widget build(BuildContext context) {
     final idx = currentIndex;
 
-    Widget navIcon(String asset, bool active, {double size = 28}) =>
-        AnimatedOpacity(
-          opacity: active ? 1 : .58,
-          duration: const Duration(milliseconds: 160),
-          child: Image.asset(
-            asset,
-            width: size,
-            height: size,
-            fit: BoxFit.contain,
-            cacheWidth: (size * MediaQuery.devicePixelRatioOf(context)).round(),
-            cacheHeight:
-                (size * MediaQuery.devicePixelRatioOf(context)).round(),
-            filterQuality: FilterQuality.medium,
-            errorBuilder: (_, __, ___) => Icon(
-              Icons.circle_rounded,
-              color: active ? AppColors.primary : Colors.blueGrey,
-              size: size,
-            ),
-          ),
+    Widget navIcon(IconData icon, bool active, {double size = 27}) => Icon(
+          icon,
+          color: active ? AppColors.primary : Colors.blueGrey,
+          size: size,
         );
 
-    Widget item(int i, String asset, String label) {
+    Widget item(int i, IconData icon, String label) {
       final active = idx == i;
 
       return Expanded(
@@ -74,7 +59,7 @@ class AppBottomNav extends StatelessWidget {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                navIcon(asset, active),
+                navIcon(icon, active),
                 const SizedBox(height: 3),
                 Text(
                   label,
@@ -109,8 +94,8 @@ class AppBottomNav extends StatelessWidget {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.end,
           children: [
-            item(0, 'assets/icons/nav/icone_inicio.png', 'Início'),
-            item(1, 'assets/icons/nav/icone_explorar.png', 'Descobrir'),
+            item(0, Icons.home_rounded, 'Início'),
+            item(1, Icons.explore_rounded, 'Descobrir'),
             Expanded(
               child: InkWell(
                 onTap: () => go(context, 2),
@@ -138,11 +123,7 @@ class AppBottomNav extends StatelessWidget {
                         ),
                         child: Padding(
                           padding: const EdgeInsets.all(10),
-                          child: navIcon(
-                            'assets/icons/nav/icone_criar.png',
-                            true,
-                            size: 42,
-                          ),
+                          child: navIcon(Icons.add_rounded, true, size: 34),
                         ),
                       ),
                     ),
@@ -164,10 +145,10 @@ class AppBottomNav extends StatelessWidget {
             ),
             item(
               3,
-              'assets/icons/nav/icone_mensagens.png',
+              Icons.chat_bubble_rounded,
               'Conversas',
             ),
-            item(4, 'assets/icons/nav/icone_perfil.png', 'Perfil'),
+            item(4, Icons.person_rounded, 'Perfil'),
           ],
         ),
       ),

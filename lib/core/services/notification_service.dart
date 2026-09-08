@@ -157,12 +157,13 @@ class NotificationService {
     await _local.cancelAll();
   }
 
-  void flushPendingNavigation() {
+  bool flushPendingNavigation() {
     final route = _normalizeRoute(_pendingRoute);
-    if (route == null) return;
+    if (route == null) return false;
 
     _pendingRoute = null;
     _openRoute(route);
+    return true;
   }
 
   Future<void> _handleAuthChanged(User? user) async {

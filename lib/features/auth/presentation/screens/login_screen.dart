@@ -410,7 +410,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     if (!mounted) return;
 
     if (profileCompleted) {
-      context.go('/home');
+      if (!NotificationService.instance.flushPendingNavigation()) {
+        context.go('/home');
+      }
     } else {
       context.go('/complete-profile');
     }
@@ -504,8 +506,18 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               ),
               const SizedBox(height: 12),
               AppOutlineButton(
-                label: 'Criar conta',
-                onPressed: loading ? null : () => context.go('/register'),
+                label: 'Criar conta pessoal',
+                onPressed: loading
+                    ? null
+                    : () => context.go('/register?type=personal'),
+              ),
+              const SizedBox(height: 10),
+              OutlinedButton.icon(
+                onPressed: loading
+                    ? null
+                    : () => context.go('/register?type=business'),
+                icon: const Icon(Icons.storefront_rounded),
+                label: const Text('Cadastrar comércio ou profissional'),
               ),
               const SizedBox(height: 20),
               const Row(

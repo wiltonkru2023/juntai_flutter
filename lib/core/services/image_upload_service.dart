@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:image_picker/image_picker.dart';
 
 import 'api_service.dart';
@@ -69,7 +70,14 @@ class ImageUploadService {
     XFile file, {
     required String purpose,
   }) async {
-    final bytes = await file.readAsBytes();
+    final originalBytes = await file.readAsBytes();
+    final bytes = await FlutterImageCompress.compressWithList(
+      originalBytes,
+      minWidth: 1600,
+      minHeight: 1600,
+      quality: 82,
+      format: CompressFormat.jpeg,
+    );
 
     if (bytes.isEmpty) {
       throw const ApiException(
@@ -86,8 +94,8 @@ class ImageUploadService {
       );
     }
 
-    final extension = _extension(file.name);
-    final mimeType = _mimeType(extension);
+    const extension = 'jpg';
+    const mimeType = 'image/jpeg';
 
     final result = await ApiService.instance.post(
       '/upload-image',
@@ -113,31 +121,5 @@ class ImageUploadService {
       url: url,
       fileId: (result['fileId'] ?? '').toString(),
     );
-  }
-
-  String _extension(String fileName) {
-    final lower = fileName.toLowerCase();
-
-    if (lower.endsWith('.png')) return 'png';
-    if (lower.endsWith('.webp')) return 'webp';
-    if (lower.endsWith('.heic')) return 'heic';
-    if (lower.endsWith('.heif')) return 'heif';
-
-    return 'jpg';
-  }
-
-  String _mimeType(String extension) {
-    switch (extension) {
-      case 'png':
-        return 'image/png';
-      case 'webp':
-        return 'image/webp';
-      case 'heic':
-        return 'image/heic';
-      case 'heif':
-        return 'image/heif';
-      default:
-        return 'image/jpeg';
-    }
   }
 }

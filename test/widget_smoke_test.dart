@@ -7,6 +7,7 @@ void main() {
   testWidgets('onboarding mostra Juntaí', (tester) async {
     await tester.pumpWidget(const MaterialApp(home: OnboardingScreen()));
     expect(find.byType(JuntaiLogo), findsOneWidget);
-    expect(find.text('Começar'), findsOneWidget);
+    expect(find.text('Criar perfil pessoal'), findsOneWidget);
+    expect(find.text('Cadastrar comércio ou profissional'), findsOneWidget);
   });
 }

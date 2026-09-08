@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../app/theme/app_colors.dart';
+import '../../../../core/services/notification_service.dart';
 import '../../../../core/widgets/juntai_logo.dart';
 
 class SplashScreen extends ConsumerStatefulWidget {
@@ -74,7 +75,9 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
       if (!mounted) return;
 
       if (profileCompleted) {
-        context.go('/home');
+        if (!NotificationService.instance.flushPendingNavigation()) {
+          context.go('/home');
+        }
       } else {
         context.go('/complete-profile');
       }
