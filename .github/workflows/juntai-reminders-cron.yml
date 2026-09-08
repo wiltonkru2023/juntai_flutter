@@ -8,6 +8,7 @@ on:
 jobs:
   call-reminders:
     runs-on: ubuntu-latest
+    environment: CRON_SECRET
     steps:
       - name: Call reminders endpoint
         run: |
