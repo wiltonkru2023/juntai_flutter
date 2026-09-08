@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../app/theme/app_colors.dart';
+import '../../../../core/extensions/context_extensions.dart';
 import '../../../../core/widgets/app_avatar.dart';
 import '../../../../core/widgets/app_search_field.dart';
 import '../widgets/conversation_tile.dart';
@@ -497,6 +498,144 @@ class _PrivateConversations extends StatelessWidget {
     });
   }
 
+  bool _containsUser(Object? value, String uid) =>
+      value is List && value.contains(uid);
+
+  Future<void> _toggleUserFlag(
+    BuildContext context,
+    DocumentReference<Map<String, dynamic>> ref,
+    String field,
+    String uid,
+    bool enabled,
+    String successMessage,
+  ) async {
+    try {
+      await ref.update({
+        field: enabled
+            ? FieldValue.arrayRemove([uid])
+            : FieldValue.arrayUnion([uid]),
+      });
+      if (context.mounted) context.snack(successMessage);
+    } on FirebaseException catch (error) {
+      if (context.mounted) {
+        context.snack(error.message ?? 'Não foi possível atualizar.');
+      }
+    }
+  }
+
+  Future<void> _clearForMe(
+    BuildContext context,
+    DocumentReference<Map<String, dynamic>> ref,
+    String uid,
+  ) async {
+    try {
+      await ref.update({
+        'clearedFor': FieldValue.arrayUnion([uid]),
+        'archivedFor': FieldValue.arrayUnion([uid]),
+      });
+      if (context.mounted) {
+        context.snack('Conversa limpa e arquivada para você.');
+      }
+    } on FirebaseException catch (error) {
+      if (context.mounted) {
+        context.snack(error.message ?? 'Não foi possível limpar a conversa.');
+      }
+    }
+  }
+
+  Future<void> _showConversationActions(
+    BuildContext context,
+    DocumentReference<Map<String, dynamic>> ref,
+    Map<String, dynamic> data,
+    String uid,
+    String name,
+  ) async {
+    final pinned = _containsUser(data['pinnedFor'], uid);
+    final muted = _containsUser(data['mutedFor'], uid);
+
+    await showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      builder: (sheetContext) => SafeArea(
+        child: Wrap(
+          children: [
+            ListTile(
+              leading: Icon(
+                pinned ? Icons.push_pin_rounded : Icons.push_pin_outlined,
+              ),
+              title: Text(pinned ? 'Desfixar conversa' : 'Fixar no topo'),
+              onTap: () {
+                Navigator.pop(sheetContext);
+                _toggleUserFlag(
+                  context,
+                  ref,
+                  'pinnedFor',
+                  uid,
+                  pinned,
+                  pinned ? 'Conversa desfixada.' : 'Conversa fixada no topo.',
+                );
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.archive_outlined),
+              title: const Text('Arquivar'),
+              subtitle: Text('$name some da lista principal.'),
+              onTap: () {
+                Navigator.pop(sheetContext);
+                _toggleUserFlag(
+                  context,
+                  ref,
+                  'archivedFor',
+                  uid,
+                  false,
+                  'Conversa arquivada.',
+                );
+              },
+            ),
+            ListTile(
+              leading: Icon(
+                muted
+                    ? Icons.notifications_active_outlined
+                    : Icons.notifications_off_outlined,
+              ),
+              title: Text(
+                muted ? 'Ativar notificações' : 'Silenciar conversa',
+              ),
+              subtitle: const Text('Silenciar bloqueia push dessa conversa.'),
+              onTap: () {
+                Navigator.pop(sheetContext);
+                _toggleUserFlag(
+                  context,
+                  ref,
+                  'mutedFor',
+                  uid,
+                  muted,
+                  muted ? 'Notificações ativadas.' : 'Conversa silenciada.',
+                );
+              },
+            ),
+            ListTile(
+              leading: const Icon(
+                Icons.cleaning_services_outlined,
+                color: AppColors.error,
+              ),
+              title: const Text(
+                'Limpar para mim',
+                style: TextStyle(color: AppColors.error),
+              ),
+              subtitle:
+                  const Text('Remove da lista sem apagar para a outra pessoa.'),
+              onTap: () {
+                Navigator.pop(sheetContext);
+                _clearForMe(context, ref, uid);
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final uid = FirebaseAuth.instance.currentUser?.uid;
@@ -510,16 +649,24 @@ class _PrivateConversations extends StatelessWidget {
           .snapshots(),
       builder: (context, snapshot) {
         final docs = (snapshot.data?.docs ?? []).where((doc) {
+          if (_containsUser(doc.data()['archivedFor'], uid)) return false;
+          if (_containsUser(doc.data()['clearedFor'], uid)) return false;
           final last =
               (doc.data()['lastMessage'] ?? '').toString().toLowerCase();
           return query.trim().isEmpty ||
               last.contains(query.trim().toLowerCase());
         }).toList();
-        docs.sort((a, b) =>
-            ((b.data()['updatedAt'] as Timestamp?)?.millisecondsSinceEpoch ?? 0)
-                .compareTo((a.data()['updatedAt'] as Timestamp?)
-                        ?.millisecondsSinceEpoch ??
-                    0));
+        docs.sort((a, b) {
+          final aPinned = _containsUser(a.data()['pinnedFor'], uid);
+          final bPinned = _containsUser(b.data()['pinnedFor'], uid);
+          if (aPinned != bPinned) return aPinned ? -1 : 1;
+          return ((b.data()['updatedAt'] as Timestamp?)
+                      ?.millisecondsSinceEpoch ??
+                  0)
+              .compareTo(
+            (a.data()['updatedAt'] as Timestamp?)?.millisecondsSinceEpoch ?? 0,
+          );
+        });
         if (docs.isEmpty) {
           return Center(
             child: Padding(
@@ -579,15 +726,41 @@ class _PrivateConversations extends StatelessWidget {
                   final name = (profile['name'] ?? 'Usuário').toString();
                   final updated = (data['updatedAt'] as Timestamp?)?.toDate() ??
                       DateTime.now();
+                  final pinned = _containsUser(data['pinnedFor'], uid);
+                  final muted = _containsUser(data['mutedFor'], uid);
                   return ListTile(
                     leading: AppAvatar(
                       name: name,
                       photoUrl: profile['photoUrl']?.toString(),
                     ),
-                    title: Text(name,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(fontWeight: FontWeight.w700)),
+                    title: Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            name,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                        if (pinned)
+                          const Icon(
+                            Icons.push_pin_rounded,
+                            size: 14,
+                            color: AppColors.primary,
+                          ),
+                        if (muted) ...[
+                          const SizedBox(width: 5),
+                          const Icon(
+                            Icons.notifications_off_outlined,
+                            size: 15,
+                            color: AppColors.textSecondary,
+                          ),
+                        ],
+                      ],
+                    ),
                     subtitle: Text(
                         (data['lastMessage'] ?? 'Conversa iniciada').toString(),
                         maxLines: 1,
@@ -597,6 +770,13 @@ class _PrivateConversations extends StatelessWidget {
                         style: const TextStyle(
                             fontSize: 12, color: AppColors.textSecondary)),
                     onTap: () => context.push('/message/$other'),
+                    onLongPress: () => _showConversationActions(
+                      context,
+                      docs[index].reference,
+                      data,
+                      uid,
+                      name,
+                    ),
                   );
                 },
               );

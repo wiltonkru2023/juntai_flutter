@@ -38,6 +38,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
   bool stoppingRecording = false;
   bool viewOnceAudio = false;
   int recordingSeconds = 0;
+  ChatMessage? replyingTo;
 
   String? get currentUid => FirebaseAuth.instance.currentUser?.uid;
 
@@ -65,9 +66,19 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     Map<String, dynamic> message,
     String preview,
   ) async {
+    final reply = replyingTo;
+    final payload = {
+      ...message,
+      if (reply != null) ...{
+        'replyToMessageId': reply.id,
+        'replyToText': _replyPreviewText(reply),
+        'replyToSenderName': reply.mine ? 'Você' : reply.senderName,
+      },
+    };
+
     final result = await ApiService.instance.sendPrivateMessage(
       otherUserId: widget.otherUserId,
-      message: message,
+      message: payload,
       preview: preview,
     );
 
@@ -107,6 +118,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     try {
       final messageId = await _write({'type': 'text', 'text': text}, text);
       input.clear();
+      replyingTo = null;
       await _notifyPrivate(messageId);
     } on FirebaseException catch (error) {
       if (mounted) {
@@ -117,7 +129,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     }
   }
 
-  Future<void> _sendImage() async {
+  Future<void> _sendImage({bool camera = false}) async {
     if (sending || recording) return;
 
     setState(() {
@@ -126,12 +138,19 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     });
 
     try {
-      final uploaded = await ImageUploadService.instance.pickFromGallery(
-        purpose: 'chat',
-        maxWidth: 1600,
-        maxHeight: 1600,
-        imageQuality: 80,
-      );
+      final uploaded = camera
+          ? await ImageUploadService.instance.pickFromCamera(
+              purpose: 'chat',
+              maxWidth: 1600,
+              maxHeight: 1600,
+              imageQuality: 80,
+            )
+          : await ImageUploadService.instance.pickFromGallery(
+              purpose: 'chat',
+              maxWidth: 1600,
+              maxHeight: 1600,
+              imageQuality: 80,
+            );
 
       if (uploaded != null) {
         final messageId = await _write(
@@ -142,6 +161,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
           },
           '📷 Foto',
         );
+        replyingTo = null;
         await _notifyPrivate(messageId);
       }
     } on ApiException catch (error) {
@@ -273,6 +293,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
         '🎤 Áudio',
       );
 
+      replyingTo = null;
       await _notifyPrivate(messageId);
     } on ApiException catch (error) {
       if (mounted) context.snack(error.message);
@@ -369,6 +390,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
         },
         '📅 ${selected.title}',
       );
+      replyingTo = null;
       await _notifyPrivate(messageId);
     }
   }
@@ -530,6 +552,24 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                 },
               ),
             ListTile(
+              leading: const Icon(Icons.reply_rounded),
+              title: const Text('Responder'),
+              subtitle: const Text('Cria um balão de contexto'),
+              onTap: () {
+                Navigator.pop(sheetContext);
+                setState(() => replyingTo = message);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.emoji_emotions_outlined),
+              title: const Text('Reagir'),
+              subtitle: const Text('👍 ❤️ 😂 😮 😢'),
+              onTap: () {
+                Navigator.pop(sheetContext);
+                _showReactionPicker(ref, message);
+              },
+            ),
+            ListTile(
               leading: const Icon(Icons.delete_outline_rounded),
               title: const Text('Excluir para mim'),
               onTap: () {
@@ -557,6 +597,70 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
         ),
       ),
     );
+  }
+
+  Future<void> _showReactionPicker(
+    DocumentReference<Map<String, dynamic>> ref,
+    ChatMessage message,
+  ) async {
+    const emojis = ['👍', '❤️', '😂', '😮', '😢'];
+    await showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      builder: (sheetContext) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(18, 8, 18, 22),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: [
+              for (final emoji in emojis)
+                InkWell(
+                  onTap: () {
+                    Navigator.pop(sheetContext);
+                    _toggleReaction(ref, message, emoji);
+                  },
+                  borderRadius: BorderRadius.circular(22),
+                  child: Padding(
+                    padding: const EdgeInsets.all(12),
+                    child: Text(emoji, style: const TextStyle(fontSize: 30)),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _toggleReaction(
+    DocumentReference<Map<String, dynamic>> ref,
+    ChatMessage message,
+    String emoji,
+  ) async {
+    final users = message.reactions[emoji] ?? const <String>[];
+    try {
+      if (users.contains(uid)) {
+        await ref.update({
+          'reactions.$emoji': FieldValue.arrayRemove([uid])
+        });
+      } else {
+        await ref.update({
+          'reactions.$emoji': FieldValue.arrayUnion([uid])
+        });
+      }
+    } on FirebaseException catch (error) {
+      if (mounted) {
+        context.snack(error.message ?? 'Não foi possível reagir.');
+      }
+    }
+  }
+
+  String _replyPreviewText(ChatMessage message) {
+    if (message.deletedForEveryone) return 'Mensagem apagada';
+    if (message.type == 'image') return '📷 Foto';
+    if (message.type == 'audio') return '🎤 Áudio';
+    if (message.type == 'activity') return '📅 ${message.text}';
+    return message.text;
   }
 
   @override
@@ -758,6 +862,9 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                         return MessageBubble(
                           message: message,
                           showDeliveryStatus: true,
+                          onReply: () => setState(() => replyingTo = message),
+                          onReact: (emoji) =>
+                              _toggleReaction(doc.reference, message, emoji),
                           onOptions: () =>
                               _showMessageActions(doc.reference, message),
                           onAudioConsumed: message.viewOnce && !message.mine
@@ -779,7 +886,8 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                 child: ChatInput(
                   controller: input,
                   onSend: _send,
-                  onImage: _sendImage,
+                  onImage: () => _sendImage(),
+                  onCamera: () => _sendImage(camera: true),
                   onRecordStart: _startRecording,
                   onRecordStop: _stopRecording,
                   onRecordCancel: _cancelRecording,
@@ -788,6 +896,15 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                   viewOnceAudio: viewOnceAudio,
                   onViewOnceChanged: (value) =>
                       setState(() => viewOnceAudio = value),
+                  replyingToLabel: replyingTo == null
+                      ? null
+                      : replyingTo!.mine
+                          ? 'Você'
+                          : replyingTo!.senderName,
+                  replyingToText: replyingTo == null
+                      ? null
+                      : _replyPreviewText(replyingTo!),
+                  onCancelReply: () => setState(() => replyingTo = null),
                   sending: sending,
                   uploadingImage: uploadingImage,
                 ),
@@ -824,6 +941,22 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
       mine: data['senderId'] == uid,
       viewOnce: data['viewOnce'] == true,
       deletedForEveryone: data['deletedForEveryone'] == true,
+      replyToMessageId: data['replyToMessageId']?.toString(),
+      replyToText: data['replyToText']?.toString(),
+      replyToSenderName: data['replyToSenderName']?.toString(),
+      reactions: _reactionsFromData(data['reactions']),
+    );
+  }
+
+  Map<String, List<String>> _reactionsFromData(Object? value) {
+    if (value is! Map) return const {};
+    return value.map(
+      (key, users) => MapEntry(
+        key.toString(),
+        users is List
+            ? users.map((user) => user.toString()).toList()
+            : <String>[],
+      ),
     );
   }
 }

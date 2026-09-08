@@ -11,6 +11,7 @@ class ChatInput extends StatefulWidget {
     required this.controller,
     required this.onSend,
     required this.onImage,
+    required this.onCamera,
     required this.onRecordStart,
     required this.onRecordStop,
     required this.onRecordCancel,
@@ -20,11 +21,15 @@ class ChatInput extends StatefulWidget {
     required this.onViewOnceChanged,
     this.sending = false,
     this.uploadingImage = false,
+    this.replyingToLabel,
+    this.replyingToText,
+    this.onCancelReply,
   });
 
   final TextEditingController controller;
   final VoidCallback onSend;
   final VoidCallback onImage;
+  final VoidCallback onCamera;
   final Future<bool> Function() onRecordStart;
   final Future<void> Function() onRecordStop;
   final Future<void> Function() onRecordCancel;
@@ -34,6 +39,9 @@ class ChatInput extends StatefulWidget {
   final bool viewOnceAudio;
   final int recordingSeconds;
   final ValueChanged<bool> onViewOnceChanged;
+  final String? replyingToLabel;
+  final String? replyingToText;
+  final VoidCallback? onCancelReply;
 
   @override
   State<ChatInput> createState() => _ChatInputState();
@@ -220,12 +228,67 @@ class _ChatInputState extends State<ChatInput> {
         mainAxisSize: MainAxisSize.min,
         children: [
           SizedBox(
-            height: 72,
+            height: (widget.replyingToText ?? '').isNotEmpty ? 124 : 72,
             child: Padding(
               padding: const EdgeInsets.fromLTRB(14, 8, 14, 12),
               child: Stack(
                 children: [
+                  if ((widget.replyingToText ?? '').isNotEmpty)
+                    Positioned(
+                      left: 0,
+                      right: 56,
+                      top: 0,
+                      child: Container(
+                        padding: const EdgeInsets.fromLTRB(12, 8, 8, 8),
+                        decoration: BoxDecoration(
+                          color: AppColors.primaryLight,
+                          borderRadius: BorderRadius.circular(16),
+                          border: const Border(
+                            left: BorderSide(
+                              color: AppColors.primary,
+                              width: 4,
+                            ),
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    widget.replyingToLabel ?? 'Respondendo',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
+                                      color: AppColors.primary,
+                                      fontWeight: FontWeight.w900,
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                  Text(
+                                    widget.replyingToText!,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
+                                      color: AppColors.textSecondary,
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            IconButton(
+                              visualDensity: VisualDensity.compact,
+                              onPressed: widget.onCancelReply,
+                              icon: const Icon(Icons.close_rounded),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
                   Positioned.fill(
+                    top: (widget.replyingToText ?? '').isNotEmpty ? 52 : 0,
                     child: IgnorePointer(
                       ignoring: recordingUi,
                       child: Opacity(
@@ -274,13 +337,37 @@ class _ChatInputState extends State<ChatInput> {
                                         ),
                                       ),
                                     ),
-                                    IconButton(
-                                      onPressed: widget.uploadingImage
-                                          ? null
-                                          : widget.onImage,
-                                      icon: const Icon(
-                                        Icons.attach_file_rounded,
-                                      ),
+                                    PopupMenuButton<String>(
+                                      tooltip: 'Anexar',
+                                      enabled: !widget.uploadingImage,
+                                      icon: const Icon(Icons.add_rounded),
+                                      onSelected: (value) {
+                                        if (value == 'camera') {
+                                          widget.onCamera();
+                                        } else if (value == 'gallery') {
+                                          widget.onImage();
+                                        }
+                                      },
+                                      itemBuilder: (_) => const [
+                                        PopupMenuItem(
+                                          value: 'camera',
+                                          child: ListTile(
+                                            leading: Icon(
+                                              Icons.photo_camera_rounded,
+                                            ),
+                                            title: Text('Câmera'),
+                                          ),
+                                        ),
+                                        PopupMenuItem(
+                                          value: 'gallery',
+                                          child: ListTile(
+                                            leading: Icon(
+                                              Icons.photo_library_rounded,
+                                            ),
+                                            title: Text('Galeria'),
+                                          ),
+                                        ),
+                                      ],
                                     ),
                                   ],
                                 ),
@@ -298,6 +385,7 @@ class _ChatInputState extends State<ChatInput> {
                   ),
                   if (recordingUi)
                     Positioned.fill(
+                      top: (widget.replyingToText ?? '').isNotEmpty ? 52 : 0,
                       right: 56,
                       child: Row(
                         children: [

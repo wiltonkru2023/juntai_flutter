@@ -1809,6 +1809,15 @@ app.post('/send-private-message', authenticate, async (req, res, next) => {
     };
 
     let preview = optionalString(req.body?.preview, 180);
+    const replyToMessageId = optionalString(raw.replyToMessageId, 200);
+    const replyToText = optionalString(raw.replyToText, 220);
+    const replyToSenderName = optionalString(raw.replyToSenderName, 80);
+
+    if (replyToMessageId && replyToText) {
+      message.replyToMessageId = replyToMessageId;
+      message.replyToText = replyToText;
+      message.replyToSenderName = replyToSenderName || 'Mensagem';
+    }
 
     if (type === 'text') {
       message.text = requiredString(raw.text, 'text', 4000);
@@ -1910,6 +1919,8 @@ app.post('/send-private-message', authenticate, async (req, res, next) => {
           lastMessage: (preview || 'Nova mensagem').slice(0, 180),
           lastSenderId: uid,
           lastMessageId: messageRef.id,
+          archivedFor: FieldValue.arrayRemove(uid, otherUid),
+          clearedFor: FieldValue.arrayRemove(uid, otherUid),
         },
         { merge: true },
       );
@@ -1959,6 +1970,12 @@ app.post('/notify-private-message', authenticate, async (req, res, next) => {
     }
     if (await blockedEither(uid, targetUid)) {
       throw new ApiError(403, 'blocked', 'Não é possível enviar mensagens entre usuários bloqueados.');
+    }
+    const mutedFor = Array.isArray(conversation.mutedFor)
+      ? conversation.mutedFor.map(String)
+      : [];
+    if (mutedFor.includes(targetUid)) {
+      return res.json({ ok: true, muted: true });
     }
 
     const profile = await userData(uid);

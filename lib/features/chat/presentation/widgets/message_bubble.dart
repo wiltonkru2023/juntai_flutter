@@ -17,12 +17,16 @@ class MessageBubble extends StatelessWidget {
     required this.message,
     this.onAudioConsumed,
     this.onOptions,
+    this.onReply,
+    this.onReact,
     this.showDeliveryStatus = false,
   });
 
   final ChatMessage message;
   final Future<void> Function()? onAudioConsumed;
   final VoidCallback? onOptions;
+  final VoidCallback? onReply;
+  final ValueChanged<String>? onReact;
   final bool showDeliveryStatus;
 
   @override
@@ -56,7 +60,13 @@ class MessageBubble extends StatelessWidget {
     final bubble = GestureDetector(
       behavior: HitTestBehavior.opaque,
       onTap: onOptions,
+      onDoubleTap: onReact == null ? null : () => onReact!('❤️'),
       onLongPress: onOptions,
+      onHorizontalDragEnd: (details) {
+        if ((details.primaryVelocity ?? 0).abs() > 220) {
+          onReply?.call();
+        }
+      },
       child: Container(
         constraints: const BoxConstraints(maxWidth: 300),
         padding: const EdgeInsets.fromLTRB(14, 11, 12, 8),
@@ -75,6 +85,11 @@ class MessageBubble extends StatelessWidget {
             if (message.deletedForEveryone)
               const _DeletedMessage()
             else ...[
+              if ((message.replyToText ?? '').isNotEmpty)
+                _ReplyPreview(
+                  senderName: message.replyToSenderName ?? 'Mensagem',
+                  text: message.replyToText!,
+                ),
               if (message.type == 'image') _ChatImage(url: message.mediaUrl),
               if (message.type == 'audio')
                 _AudioMessagePlayer(
@@ -87,6 +102,10 @@ class MessageBubble extends StatelessWidget {
                   message.text,
                   style: const TextStyle(fontSize: 15, height: 1.35),
                 ),
+            ],
+            if (message.reactions.isNotEmpty) ...[
+              const SizedBox(height: 7),
+              _ReactionRow(reactions: message.reactions),
             ],
             const SizedBox(height: 5),
             Row(
@@ -175,6 +194,89 @@ class MessageBubble extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+class _ReplyPreview extends StatelessWidget {
+  const _ReplyPreview({
+    required this.senderName,
+    required this.text,
+  });
+
+  final String senderName;
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: .72),
+        borderRadius: BorderRadius.circular(13),
+        border: const Border(
+          left: BorderSide(color: AppColors.primary, width: 4),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            senderName,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              color: AppColors.primary,
+              fontWeight: FontWeight.w900,
+              fontSize: 12,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            text,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style:
+                const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ReactionRow extends StatelessWidget {
+  const _ReactionRow({required this.reactions});
+
+  final Map<String, List<String>> reactions;
+
+  @override
+  Widget build(BuildContext context) {
+    final entries = reactions.entries
+        .where((entry) => entry.value.isNotEmpty)
+        .toList()
+      ..sort((a, b) => b.value.length.compareTo(a.value.length));
+
+    return Wrap(
+      spacing: 5,
+      runSpacing: 5,
+      children: [
+        for (final entry in entries)
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(999),
+              border: Border.all(color: AppColors.border),
+            ),
+            child: Text(
+              '${entry.key} ${entry.value.length}',
+              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w800),
+            ),
+          ),
+      ],
     );
   }
 }
@@ -320,6 +422,7 @@ class _AudioMessagePlayerState extends State<_AudioMessagePlayer> {
   String? _tempPath;
   bool _preparing = false;
   bool _consumed = false;
+  double _speed = 1;
 
   @override
   void initState() {
@@ -415,6 +518,8 @@ class _AudioMessagePlayerState extends State<_AudioMessagePlayer> {
       if (path == null) return;
       await _player.play(DeviceFileSource(path));
     }
+
+    await _player.setPlaybackRate(_speed);
 
     if (mounted) setState(() {});
   }
@@ -526,10 +631,32 @@ class _AudioMessagePlayerState extends State<_AudioMessagePlayer> {
             ),
           ),
           const SizedBox(width: 8),
-          const Icon(
-            Icons.mic_rounded,
-            size: 18,
-            color: AppColors.primary,
+          InkWell(
+            onTap: () async {
+              final next = _speed == 1
+                  ? 1.5
+                  : _speed == 1.5
+                      ? 2.0
+                      : 1.0;
+              await _player.setPlaybackRate(next);
+              if (mounted) setState(() => _speed = next);
+            },
+            borderRadius: BorderRadius.circular(999),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
+              decoration: BoxDecoration(
+                color: AppColors.primaryLight,
+                borderRadius: BorderRadius.circular(999),
+              ),
+              child: Text(
+                '${_speed.toStringAsFixed(_speed == 1 ? 0 : 1)}x',
+                style: const TextStyle(
+                  color: AppColors.primary,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+            ),
           ),
         ],
       ),

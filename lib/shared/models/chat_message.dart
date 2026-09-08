@@ -18,6 +18,10 @@ class ChatMessage {
   final bool mine;
   final bool viewOnce;
   final bool deletedForEveryone;
+  final String? replyToMessageId;
+  final String? replyToText;
+  final String? replyToSenderName;
+  final Map<String, List<String>> reactions;
 
   const ChatMessage({
     required this.id,
@@ -39,6 +43,10 @@ class ChatMessage {
     required this.mine,
     this.viewOnce = false,
     this.deletedForEveryone = false,
+    this.replyToMessageId,
+    this.replyToText,
+    this.replyToSenderName,
+    this.reactions = const {},
   });
 
   bool get canEdit {

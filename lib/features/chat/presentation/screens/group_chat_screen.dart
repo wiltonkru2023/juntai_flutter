@@ -42,6 +42,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   bool uploadingImage = false;
   bool stoppingRecording = false;
   bool viewOnceAudio = false;
+  ChatMessage? replyingTo;
 
   DocumentReference<Map<String, dynamic>> get activityRef =>
       FirebaseFirestore.instance
@@ -86,14 +87,22 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     }
   }
 
-  Map<String, dynamic> _baseMessage(User user, String senderName) => {
-        'senderId': user.uid,
-        'senderName': senderName,
-        'createdAt': FieldValue.serverTimestamp(),
-        'seenBy': [user.uid],
-        'hiddenFor': <String>[],
-        'deletedForEveryone': false,
-      };
+  Map<String, dynamic> _baseMessage(User user, String senderName) {
+    final reply = replyingTo;
+    return {
+      'senderId': user.uid,
+      'senderName': senderName,
+      'createdAt': FieldValue.serverTimestamp(),
+      'seenBy': [user.uid],
+      'hiddenFor': <String>[],
+      'deletedForEveryone': false,
+      if (reply != null) ...{
+        'replyToMessageId': reply.id,
+        'replyToText': _replyPreviewText(reply),
+        'replyToSenderName': reply.mine ? 'Você' : reply.senderName,
+      },
+    };
+  }
 
   Future<void> send() async {
     if (sending || recording) return;
@@ -118,6 +127,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
       });
 
       input.clear();
+      replyingTo = null;
       _scrollToBottom();
       await _notifyMessage(messageRef.id);
     } on FirebaseException catch (error) {
@@ -134,7 +144,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     }
   }
 
-  Future<void> sendImage() async {
+  Future<void> sendImage({bool camera = false}) async {
     if (sending || recording) return;
 
     final user = FirebaseAuth.instance.currentUser;
@@ -149,12 +159,19 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     });
 
     try {
-      final uploaded = await ImageUploadService.instance.pickFromGallery(
-        purpose: 'chat',
-        maxWidth: 1600,
-        maxHeight: 1600,
-        imageQuality: 80,
-      );
+      final uploaded = camera
+          ? await ImageUploadService.instance.pickFromCamera(
+              purpose: 'chat',
+              maxWidth: 1600,
+              maxHeight: 1600,
+              imageQuality: 80,
+            )
+          : await ImageUploadService.instance.pickFromGallery(
+              purpose: 'chat',
+              maxWidth: 1600,
+              maxHeight: 1600,
+              imageQuality: 80,
+            );
       if (uploaded == null) return;
 
       final senderName = await _senderName(user);
@@ -165,6 +182,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
         'mediaUrl': uploaded.url,
       });
 
+      replyingTo = null;
       _scrollToBottom();
       await _notifyMessage(messageRef.id);
     } on ApiException catch (error) {
@@ -315,6 +333,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
         'viewOnce': viewOnceAudio,
       });
 
+      replyingTo = null;
       _scrollToBottom();
       await _notifyMessage(messageRef.id);
     } on ApiException catch (error) {
@@ -490,6 +509,24 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                 },
               ),
             ListTile(
+              leading: const Icon(Icons.reply_rounded),
+              title: const Text('Responder'),
+              subtitle: const Text('Cria um balão de contexto'),
+              onTap: () {
+                Navigator.pop(sheetContext);
+                setState(() => replyingTo = message);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.emoji_emotions_outlined),
+              title: const Text('Reagir'),
+              subtitle: const Text('👍 ❤️ 😂 😮 😢'),
+              onTap: () {
+                Navigator.pop(sheetContext);
+                _showReactionPicker(ref, message, uid);
+              },
+            ),
+            ListTile(
               leading: const Icon(Icons.delete_outline_rounded),
               title: const Text('Excluir para mim'),
               onTap: () {
@@ -517,6 +554,72 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
         ),
       ),
     );
+  }
+
+  Future<void> _showReactionPicker(
+    DocumentReference<Map<String, dynamic>> ref,
+    ChatMessage message,
+    String uid,
+  ) async {
+    const emojis = ['👍', '❤️', '😂', '😮', '😢'];
+    await showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      builder: (sheetContext) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(18, 8, 18, 22),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: [
+              for (final emoji in emojis)
+                InkWell(
+                  onTap: () {
+                    Navigator.pop(sheetContext);
+                    _toggleReaction(ref, message, uid, emoji);
+                  },
+                  borderRadius: BorderRadius.circular(22),
+                  child: Padding(
+                    padding: const EdgeInsets.all(12),
+                    child: Text(emoji, style: const TextStyle(fontSize: 30)),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _toggleReaction(
+    DocumentReference<Map<String, dynamic>> ref,
+    ChatMessage message,
+    String uid,
+    String emoji,
+  ) async {
+    final users = message.reactions[emoji] ?? const <String>[];
+    try {
+      if (users.contains(uid)) {
+        await ref.update({
+          'reactions.$emoji': FieldValue.arrayRemove([uid])
+        });
+      } else {
+        await ref.update({
+          'reactions.$emoji': FieldValue.arrayUnion([uid])
+        });
+      }
+    } on FirebaseException catch (error) {
+      if (mounted) {
+        context.snack(error.message ?? 'Não foi possível reagir.');
+      }
+    }
+  }
+
+  String _replyPreviewText(ChatMessage message) {
+    if (message.deletedForEveryone) return 'Mensagem apagada';
+    if (message.type == 'image') return '📷 Foto';
+    if (message.type == 'audio') return '🎤 Áudio';
+    if (message.type == 'activity') return '📅 ${message.text}';
+    return message.text;
   }
 
   Future<void> _reportConversation(String reason) async {
@@ -827,6 +930,12 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                             mine: data['senderId'] == user.uid,
                             deletedForEveryone:
                                 data['deletedForEveryone'] == true,
+                            replyToMessageId:
+                                data['replyToMessageId']?.toString(),
+                            replyToText: data['replyToText']?.toString(),
+                            replyToSenderName:
+                                data['replyToSenderName']?.toString(),
+                            reactions: _reactionsFromData(data['reactions']),
                           );
                         }).toList();
 
@@ -875,6 +984,14 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                             final doc = visibleDocs[index];
                             return MessageBubble(
                               message: message,
+                              onReply: () =>
+                                  setState(() => replyingTo = message),
+                              onReact: (emoji) => _toggleReaction(
+                                doc.reference,
+                                message,
+                                user.uid,
+                                emoji,
+                              ),
                               onOptions: () => _showMessageActions(
                                 doc.reference,
                                 message,
@@ -898,7 +1015,8 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                   ChatInput(
                     controller: input,
                     onSend: send,
-                    onImage: sendImage,
+                    onImage: () => sendImage(),
+                    onCamera: () => sendImage(camera: true),
                     onRecordStart: startRecording,
                     onRecordStop: stopRecording,
                     onRecordCancel: cancelRecording,
@@ -907,6 +1025,15 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                     viewOnceAudio: viewOnceAudio,
                     onViewOnceChanged: (value) =>
                         setState(() => viewOnceAudio = value),
+                    replyingToLabel: replyingTo == null
+                        ? null
+                        : replyingTo!.mine
+                            ? 'Você'
+                            : replyingTo!.senderName,
+                    replyingToText: replyingTo == null
+                        ? null
+                        : _replyPreviewText(replyingTo!),
+                    onCancelReply: () => setState(() => replyingTo = null),
                     sending: sending,
                     uploadingImage: uploadingImage,
                   ),
@@ -916,6 +1043,18 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
           },
         );
       },
+    );
+  }
+
+  Map<String, List<String>> _reactionsFromData(Object? value) {
+    if (value is! Map) return const {};
+    return value.map(
+      (key, users) => MapEntry(
+        key.toString(),
+        users is List
+            ? users.map((user) => user.toString()).toList()
+            : <String>[],
+      ),
     );
   }
 }
