@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../app/theme/app_colors.dart';
+import 'app_network_image.dart';
 import '../extensions/string_extensions.dart';
 
 class AppAvatar extends StatelessWidget {
@@ -14,16 +15,30 @@ class AppAvatar extends StatelessWidget {
   final String? photoUrl;
   final Color? background;
   @override
-  Widget build(BuildContext context) => CircleAvatar(
+  Widget build(BuildContext context) {
+    final photo = photoUrl?.trim() ?? '';
+
+    if (photo.isNotEmpty) {
+      return ClipOval(
+        child: AppNetworkImage(
+          url: photo,
+          width: size,
+          height: size,
+          borderRadius: BorderRadius.circular(size),
+          errorIconSize: size * .45,
+          backgroundColor: background ?? AppColors.primaryLight,
+        ),
+      );
+    }
+
+    return CircleAvatar(
       radius: size / 2,
       backgroundColor: background ?? AppColors.primaryLight,
       foregroundColor: AppColors.primary,
-      backgroundImage: (photoUrl != null && photoUrl!.isNotEmpty)
-          ? NetworkImage(photoUrl!)
-          : null,
-      child: (photoUrl == null || photoUrl!.isEmpty)
-          ? Text(name.initials,
-              style:
-                  TextStyle(fontWeight: FontWeight.w700, fontSize: size * .32))
-          : null);
+      child: Text(
+        name.initials,
+        style: TextStyle(fontWeight: FontWeight.w700, fontSize: size * .32),
+      ),
+    );
+  }
 }

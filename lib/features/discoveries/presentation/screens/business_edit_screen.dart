@@ -10,6 +10,7 @@ import '../../../../core/formatters/br_input_formatters.dart';
 import '../../../../core/services/api_service.dart';
 import '../../../../core/services/image_upload_service.dart';
 import '../../../../core/widgets/address_autocomplete_field.dart';
+import '../../../../core/widgets/app_network_image.dart';
 
 class BusinessEditScreen extends StatefulWidget {
   const BusinessEditScreen({
@@ -360,14 +361,11 @@ class _BusinessEditScreenState extends State<BusinessEditScreen> {
                       for (final url in galleryUrls)
                         Stack(
                           children: [
-                            ClipRRect(
+                            AppNetworkImage(
+                              url: url,
+                              width: 90,
+                              height: 90,
                               borderRadius: BorderRadius.circular(12),
-                              child: Image.network(
-                                url,
-                                width: 90,
-                                height: 90,
-                                fit: BoxFit.cover,
-                              ),
                             ),
                             Positioned(
                               right: 0,
@@ -436,7 +434,11 @@ class _ImageBox extends StatelessWidget {
           ),
           child: (url ?? '').isEmpty
               ? Center(child: Text('Adicionar $label'))
-              : Image.network(url!, fit: BoxFit.cover),
+              : AppNetworkImage(
+                  url: url,
+                  fit: BoxFit.cover,
+                  borderRadius: BorderRadius.circular(16),
+                ),
         ),
       );
 }

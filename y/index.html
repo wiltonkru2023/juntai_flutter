@@ -6,44 +6,46 @@
     <title>Juntaí Admin</title>
     <style>
       :root {
-        color-scheme: light;
-        --bg: #f5f7fb;
+        --bg: #f4f7f5;
         --surface: #ffffff;
-        --ink: #151922;
-        --muted: #697386;
-        --line: #dfe5ee;
-        --primary: #08a77b;
-        --primary-dark: #067a5d;
+        --surface-2: #eff8f4;
+        --ink: #101820;
+        --muted: #64716c;
+        --line: #dfe9e4;
+        --primary: #078f6b;
+        --primary-2: #05b383;
+        --danger: #d14343;
+        --warn: #b76a00;
+        --ok: #168a4a;
       }
 
-      * {
-        box-sizing: border-box;
-      }
+      * { box-sizing: border-box; }
 
       body {
         margin: 0;
-        background: var(--bg);
+        background:
+          radial-gradient(circle at top left, rgba(5, 179, 131, .18), transparent 32rem),
+          var(--bg);
         color: var(--ink);
-        font-family: Inter, ui-sans-serif, system-ui, -apple-system,
-          BlinkMacSystemFont, "Segoe UI", sans-serif;
+        font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
       }
 
       header {
         position: sticky;
         top: 0;
+        z-index: 2;
         border-bottom: 1px solid var(--line);
-        background: rgba(255, 255, 255, 0.92);
-        backdrop-filter: blur(14px);
+        background: rgba(255,255,255,.9);
+        backdrop-filter: blur(16px);
       }
 
-      .bar,
-      main {
-        width: min(1120px, calc(100% - 32px));
+      .bar, main {
+        width: min(1240px, calc(100% - 32px));
         margin: 0 auto;
       }
 
       .bar {
-        min-height: 72px;
+        min-height: 74px;
         display: flex;
         align-items: center;
         justify-content: space-between;
@@ -54,173 +56,422 @@
         display: flex;
         align-items: center;
         gap: 12px;
-        font-weight: 900;
+        font-weight: 950;
         font-size: 22px;
       }
 
       .mark {
-        width: 40px;
-        height: 40px;
-        border-radius: 14px;
-        background: var(--primary);
+        width: 42px;
+        height: 42px;
+        border-radius: 16px;
         display: grid;
         place-items: center;
-        color: #fff;
+        color: white;
+        background: linear-gradient(135deg, var(--primary), var(--primary-2));
+        box-shadow: 0 12px 26px rgba(7, 143, 107, .24);
       }
 
-      main {
-        padding: 34px 0 46px;
-      }
+      main { padding: 28px 0 48px; }
 
       .hero {
         display: grid;
-        grid-template-columns: 1.25fr 0.75fr;
+        grid-template-columns: 1.15fr .85fr;
         gap: 18px;
-        align-items: stretch;
+        margin-bottom: 18px;
       }
 
-      .panel,
-      .card {
-        background: var(--surface);
+      .panel, .card, .table-wrap {
+        background: rgba(255,255,255,.94);
         border: 1px solid var(--line);
-        border-radius: 18px;
+        border-radius: 24px;
+        box-shadow: 0 14px 40px rgba(16,24,32,.06);
       }
 
-      .panel {
-        padding: 28px;
-      }
+      .panel { padding: 26px; }
 
       h1 {
         margin: 0;
-        font-size: clamp(32px, 5vw, 52px);
-        line-height: 1;
-        letter-spacing: 0;
+        max-width: 820px;
+        font-size: clamp(34px, 5vw, 58px);
+        line-height: .98;
+        letter-spacing: -.04em;
       }
 
-      p {
-        color: var(--muted);
-        line-height: 1.6;
-      }
+      h2 { margin: 0 0 12px; font-size: 20px; }
+      h3 { margin: 0; font-size: 16px; }
+      p { color: var(--muted); line-height: 1.55; }
 
-      .actions {
+      .actions, .row {
         display: flex;
         flex-wrap: wrap;
         gap: 10px;
-        margin-top: 24px;
+        align-items: center;
       }
 
-      a.button {
-        color: #fff;
-        background: var(--primary);
-        padding: 12px 16px;
+      button, .button, input, select, textarea {
         border-radius: 14px;
+        border: 1px solid var(--line);
+        font: inherit;
+      }
+
+      button, .button {
+        cursor: pointer;
+        border: 0;
+        color: white;
+        background: var(--primary);
+        padding: 11px 14px;
+        font-weight: 850;
         text-decoration: none;
-        font-weight: 800;
       }
 
-      a.button.secondary {
-        color: var(--ink);
-        background: #eef3f8;
+      button.secondary, .button.secondary { color: var(--ink); background: #edf2ef; }
+      button.danger { background: var(--danger); }
+      button.warn { background: var(--warn); }
+      button:disabled { opacity: .55; cursor: wait; }
+
+      input, select, textarea {
+        width: 100%;
+        padding: 12px 13px;
+        background: white;
       }
 
-      .status {
+      textarea { min-height: 88px; resize: vertical; }
+
+      .login-grid {
         display: grid;
+        grid-template-columns: 1fr 1fr;
         gap: 12px;
+      }
+
+      .metrics {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 12px;
+        margin: 18px 0;
       }
 
       .metric {
         padding: 18px;
+        border-radius: 20px;
+        background: var(--surface);
+        border: 1px solid var(--line);
       }
 
       .metric strong {
         display: block;
-        font-size: 26px;
+        font-size: 30px;
+        line-height: 1;
       }
 
-      .grid {
-        margin-top: 18px;
+      .layout {
         display: grid;
-        grid-template-columns: repeat(3, 1fr);
-        gap: 14px;
+        grid-template-columns: 1fr 1fr;
+        gap: 18px;
       }
 
-      .card {
+      .table-wrap { overflow: hidden; }
+      .table-head {
         padding: 18px;
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        align-items: center;
+        border-bottom: 1px solid var(--line);
       }
 
-      .card h2 {
-        margin: 0 0 8px;
-        font-size: 18px;
+      table { width: 100%; border-collapse: collapse; }
+      th, td {
+        padding: 13px 14px;
+        text-align: left;
+        border-bottom: 1px solid var(--line);
+        vertical-align: top;
+        font-size: 14px;
       }
 
-      .tag {
-        padding: 8px 10px;
+      th { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .08em; }
+
+      .pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 6px 9px;
         border-radius: 999px;
-        background: #e7f8f2;
-        color: var(--primary-dark);
-        font-size: 13px;
-        font-weight: 800;
+        background: var(--surface-2);
+        color: var(--primary);
+        font-size: 12px;
+        font-weight: 900;
       }
 
-      @media (max-width: 820px) {
-        .hero,
-        .grid {
-          grid-template-columns: 1fr;
-        }
+      .pill.pending { color: var(--warn); background: #fff5e8; }
+      .pill.approved, .pill.closed { color: var(--ok); background: #eaf8ef; }
+      .pill.rejected, .pill.suspended { color: var(--danger); background: #fff0f0; }
+
+      .muted { color: var(--muted); }
+      .hidden { display: none !important; }
+      .stack { display: grid; gap: 10px; }
+      .card { padding: 18px; }
+      .small { font-size: 12px; }
+
+      @media (max-width: 900px) {
+        .hero, .layout, .login-grid, .metrics { grid-template-columns: 1fr; }
+        .table-wrap { overflow-x: auto; }
       }
     </style>
   </head>
   <body>
     <header>
       <div class="bar">
-        <div class="brand">
-          <div class="mark">J</div>
-          Juntaí Admin
+        <div class="brand"><div class="mark">J</div>Juntaí Admin</div>
+        <div class="row">
+          <span id="adminStatus" class="pill pending">desconectado</span>
+          <button id="logoutBtn" class="secondary hidden">Sair</button>
         </div>
-        <span class="tag">produção</span>
       </div>
     </header>
 
     <main>
       <section class="hero">
         <div class="panel">
-          <h1>Central operacional do Juntaí</h1>
+          <h1>Admin real para transformar descoberta em gente junta.</h1>
           <p>
-            Acompanhe saúde da API, deploys, cron de lembretes e configuração
-            externa antes de liberar novas versões do aplicativo.
+            Gerencie revisão comercial, denúncias, planos e saúde operacional.
+            O acesso usa Firebase Auth e endpoints protegidos por claim admin.
           </p>
           <div class="actions">
-            <a class="button" href="https://juntai-flutter.onrender.com" target="_blank" rel="noreferrer">Abrir API</a>
             <a class="button secondary" href="https://dashboard.render.com" target="_blank" rel="noreferrer">Render</a>
-            <a class="button secondary" href="https://github.com/wiltonkru2023/juntai_flutter/actions" target="_blank" rel="noreferrer">Actions</a>
+            <a class="button secondary" href="https://github.com/wiltonkru2023/juntai_flutter/actions" target="_blank" rel="noreferrer">GitHub Actions</a>
+            <a class="button secondary" href="https://juntai-flutter.onrender.com" target="_blank" rel="noreferrer">API</a>
           </div>
         </div>
-        <div class="status">
-          <div class="card metric">
-            <strong>15 min</strong>
-            Cron de lembretes pelo GitHub Actions
+
+        <form id="loginCard" class="panel stack">
+          <h2>Entrar como admin</h2>
+          <input id="email" type="email" placeholder="E-mail admin" autocomplete="email" />
+          <input id="password" type="password" placeholder="Senha" autocomplete="current-password" />
+          <div class="login-grid">
+            <button type="submit">Entrar</button>
+            <button id="bootstrapBtn" class="secondary" type="button">Ativar admin</button>
           </div>
-          <div class="card metric">
-            <strong>Render</strong>
-            API Node com Mercado Pago, ImageKit e Firebase Admin
-          </div>
-        </div>
+          <p class="small">
+            Use “Ativar admin” uma vez se seu e-mail estiver em ADMIN_EMAILS no Render.
+          </p>
+        </form>
       </section>
 
-      <section class="grid">
-        <article class="card">
-          <h2>Revisão comercial</h2>
-          <p>Aprovar perfis, validar categorias e acompanhar planos.</p>
-        </article>
-        <article class="card">
-          <h2>Moderação</h2>
-          <p>Centralizar denúncias, bloqueios e contas com risco.</p>
-        </article>
-        <article class="card">
-          <h2>Checklist release</h2>
-          <p>Testar login, pagamentos, push, chat e fluxos com duas contas.</p>
-        </article>
+      <section id="dashboard" class="hidden">
+        <div class="metrics">
+          <div class="metric"><strong id="mBusinesses">0</strong><span>perfis comerciais</span></div>
+          <div class="metric"><strong id="mPending">0</strong><span>em análise</span></div>
+          <div class="metric"><strong id="mReports">0</strong><span>denúncias abertas</span></div>
+          <div class="metric"><strong id="mCampaigns">0</strong><span>campanhas</span></div>
+        </div>
+
+        <div class="layout">
+          <section class="table-wrap">
+            <div class="table-head">
+              <div>
+                <h2>Revisão comercial</h2>
+                <div class="muted small">Aprovar, rejeitar, verificar, suspender e alterar plano.</div>
+              </div>
+              <button id="refreshBtn">Atualizar</button>
+            </div>
+            <table>
+              <thead>
+                <tr>
+                  <th>Perfil</th>
+                  <th>Status</th>
+                  <th>Plano</th>
+                  <th>Ações</th>
+                </tr>
+              </thead>
+              <tbody id="businessRows"></tbody>
+            </table>
+          </section>
+
+          <section class="table-wrap">
+            <div class="table-head">
+              <div>
+                <h2>Moderação</h2>
+                <div class="muted small">Denúncias por usuário, comércio, atividade, post e chat.</div>
+              </div>
+            </div>
+            <table>
+              <thead>
+                <tr>
+                  <th>Denúncia</th>
+                  <th>Status</th>
+                  <th>Ações</th>
+                </tr>
+              </thead>
+              <tbody id="reportRows"></tbody>
+            </table>
+          </section>
+        </div>
+
+        <section class="card" style="margin-top:18px">
+          <h2>Checklist de release</h2>
+          <div class="row">
+            <span class="pill">notificações com rota</span>
+            <span class="pill">upload JPG validado</span>
+            <span class="pill">login pessoa/comércio/profissional</span>
+            <span class="pill">chat com fallback</span>
+            <span class="pill">analyze/test/APK obrigatório</span>
+          </div>
+        </section>
       </section>
     </main>
+
+    <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
+    <script>
+      const API = 'https://juntai-flutter.onrender.com';
+      firebase.initializeApp({
+        apiKey: 'AIzaSyCSlnSjYBMOhwopjhCUO4l8q3Wuqkf44zQ',
+        authDomain: 'juntai-f7605.firebaseapp.com',
+        projectId: 'juntai-f7605',
+        storageBucket: 'juntai-f7605.firebasestorage.app',
+        messagingSenderId: '941331616299'
+      });
+
+      const $ = (id) => document.getElementById(id);
+      let overview = { businesses: [], reports: [], campaigns: [] };
+
+      async function token(force = false) {
+        const user = firebase.auth().currentUser;
+        if (!user) throw new Error('Faça login primeiro.');
+        return user.getIdToken(force);
+      }
+
+      async function call(path, body = {}, forceToken = false) {
+        const response = await fetch(`${API}${path}`, {
+          method: 'POST',
+          headers: {
+            'content-type': 'application/json',
+            authorization: `Bearer ${await token(forceToken)}`
+          },
+          body: JSON.stringify(body)
+        });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(data.message || data.code || 'Falha na operação.');
+        return data;
+      }
+
+      function badge(value) {
+        const text = String(value || 'pendente');
+        return `<span class="pill ${text}">${text}</span>`;
+      }
+
+      function render() {
+        const businesses = overview.businesses || [];
+        const reports = overview.reports || [];
+        const campaigns = overview.campaigns || [];
+        $('mBusinesses').textContent = businesses.length;
+        $('mPending').textContent = businesses.filter((b) => b.reviewStatus !== 'approved').length;
+        $('mReports').textContent = reports.filter((r) => (r.status || 'open') === 'open').length;
+        $('mCampaigns').textContent = campaigns.length;
+
+        $('businessRows').innerHTML = businesses.map((b) => `
+          <tr>
+            <td>
+              <strong>${b.name || 'Sem nome'}</strong><br />
+              <span class="muted">@${b.username || b.id} • ${b.category || 'categoria'} • ${b.city || ''}/${b.state || ''}</span>
+            </td>
+            <td>${badge(b.reviewStatus)} ${badge(b.status || 'active')} ${b.verified ? badge('verified') : ''}</td>
+            <td>
+              <select data-plan="${b.id}">
+                ${['free','local','pro','premium'].map((p) => `<option value="${p}" ${p === (b.plan || 'free') ? 'selected' : ''}>${p}</option>`).join('')}
+              </select>
+            </td>
+            <td class="stack">
+              <div class="row">
+                <button data-business-action="approve" data-id="${b.id}">Aprovar</button>
+                <button class="secondary" data-business-action="verify" data-id="${b.id}">Verificar</button>
+                <button class="warn" data-business-action="reject" data-id="${b.id}">Rejeitar</button>
+                <button class="danger" data-business-action="suspend" data-id="${b.id}">Suspender</button>
+              </div>
+            </td>
+          </tr>
+        `).join('') || '<tr><td colspan="4" class="muted">Nenhum perfil encontrado.</td></tr>';
+
+        $('reportRows').innerHTML = reports.map((r) => `
+          <tr>
+            <td>
+              <strong>${r.targetType || 'item'}: ${r.targetId || ''}</strong><br />
+              <span class="muted">${r.reason || ''} ${r.details ? '• ' + r.details : ''}</span>
+            </td>
+            <td>${badge(r.status || 'open')}</td>
+            <td class="row">
+              <button data-report-status="reviewing" data-id="${r.id}">Em análise</button>
+              <button class="secondary" data-report-status="resolved" data-id="${r.id}">Resolver</button>
+              <button class="danger" data-report-status="dismissed" data-id="${r.id}">Descartar</button>
+            </td>
+          </tr>
+        `).join('') || '<tr><td colspan="3" class="muted">Nenhuma denúncia encontrada.</td></tr>';
+      }
+
+      async function load() {
+        $('refreshBtn').disabled = true;
+        try {
+          overview = await call('/blueprint/admin/overview');
+          render();
+        } finally {
+          $('refreshBtn').disabled = false;
+        }
+      }
+
+      $('loginCard').addEventListener('submit', async (event) => {
+        event.preventDefault();
+        await firebase.auth().signInWithEmailAndPassword($('email').value.trim(), $('password').value);
+      });
+
+      $('bootstrapBtn').addEventListener('click', async () => {
+        await firebase.auth().signInWithEmailAndPassword($('email').value.trim(), $('password').value);
+        await call('/blueprint/admin/bootstrap');
+        await token(true);
+        alert('Admin ativado. Atualizando painel.');
+        await load();
+      });
+
+      $('logoutBtn').addEventListener('click', () => firebase.auth().signOut());
+      $('refreshBtn').addEventListener('click', load);
+
+      document.addEventListener('change', async (event) => {
+        const businessId = event.target?.dataset?.plan;
+        if (!businessId) return;
+        await call('/blueprint/admin/set-plan', { businessId, plan: event.target.value });
+        await load();
+      });
+
+      document.addEventListener('click', async (event) => {
+        const businessAction = event.target?.dataset?.businessAction;
+        const businessId = event.target?.dataset?.id;
+        const reportStatus = event.target?.dataset?.reportStatus;
+
+        if (businessAction && businessId) {
+          await call('/blueprint/admin/business-review', { businessId, action: businessAction });
+          await load();
+        }
+
+        if (reportStatus && businessId) {
+          await call('/blueprint/admin/report-status', { reportId: businessId, status: reportStatus });
+          await load();
+        }
+      });
+
+      firebase.auth().onAuthStateChanged(async (user) => {
+        $('loginCard').classList.toggle('hidden', Boolean(user));
+        $('dashboard').classList.toggle('hidden', !user);
+        $('logoutBtn').classList.toggle('hidden', !user);
+        $('adminStatus').textContent = user ? user.email : 'desconectado';
+        $('adminStatus').className = user ? 'pill approved' : 'pill pending';
+        if (user) {
+          try {
+            await load();
+          } catch (error) {
+            alert(error.message);
+          }
+        }
+      });
+    </script>
   </body>
 </html>

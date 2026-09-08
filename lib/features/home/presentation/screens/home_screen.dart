@@ -4,6 +4,7 @@ import 'package:geolocator/geolocator.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../app/theme/app_colors.dart';
+import '../../../../core/widgets/app_network_image.dart';
 import '../../../../core/widgets/app_search_field.dart';
 import '../../../../shared/enums/activity_category.dart';
 import '../../../../shared/models/activity.dart';
@@ -421,12 +422,12 @@ class _DiscoveriesPreview extends StatelessWidget {
                           PostMetricTracker(postId: d.id, event: 'impression'),
                           Row(children: [
                             if ((d.coverUrl ?? '').isNotEmpty)
-                              ClipRRect(
-                                  borderRadius: BorderRadius.circular(12),
-                                  child: Image.network(d.coverUrl!,
-                                      width: 82,
-                                      height: 100,
-                                      fit: BoxFit.cover))
+                              AppNetworkImage(
+                                url: d.coverUrl,
+                                width: 82,
+                                height: 100,
+                                borderRadius: BorderRadius.circular(12),
+                              )
                             else
                               const SizedBox(
                                   width: 82,

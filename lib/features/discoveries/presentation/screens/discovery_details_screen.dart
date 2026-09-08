@@ -8,6 +8,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../../../app/theme/app_colors.dart';
 import '../../../../core/extensions/context_extensions.dart';
 import '../../../../core/services/api_service.dart';
+import '../../../../core/widgets/app_network_image.dart';
 import '../../../../shared/models/activity.dart';
 import '../../../home/presentation/widgets/activity_card.dart';
 import '../../domain/discovery.dart';
@@ -78,7 +79,11 @@ class _DiscoveryBodyState extends State<_DiscoveryBody> {
           flexibleSpace: FlexibleSpaceBar(
             background: (d.coverUrl ?? '').isEmpty
                 ? const ColoredBox(color: AppColors.primaryLight)
-                : Image.network(d.coverUrl!, fit: BoxFit.cover),
+                : AppNetworkImage(
+                    url: d.coverUrl,
+                    fit: BoxFit.cover,
+                    borderRadius: BorderRadius.zero,
+                  ),
           ),
         ),
         SliverPadding(

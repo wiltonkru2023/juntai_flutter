@@ -355,6 +355,19 @@ app.post('/upload-image', authenticate, async (req, res, next) => {
       throw new ApiError(400, 'invalid-argument', 'Imagem vazia.');
     }
 
+    if (mimeType === 'image/jpeg') {
+      const startsAsJpeg = bytes.length > 4 && bytes[0] === 0xff && bytes[1] === 0xd8;
+      const endsAsJpeg = bytes[bytes.length - 2] === 0xff && bytes[bytes.length - 1] === 0xd9;
+
+      if (!startsAsJpeg || !endsAsJpeg) {
+        throw new ApiError(
+          400,
+          'invalid-image',
+          'A imagem enviada não é um JPG válido.',
+        );
+      }
+    }
+
     if (bytes.length > 4 * 1024 * 1024) {
       throw new ApiError(
         413,
@@ -729,6 +742,7 @@ app.post('/join-activity', authenticate, async (req, res, next) => {
         body: `${String(profile.name || 'Alguém')} entrou em ${title}`,
         activityId,
         actorId: uid,
+        route: `/activity/${activityId}`,
       });
     }
 
@@ -880,6 +894,7 @@ app.post('/request-join-activity', authenticate, async (req, res, next) => {
         body: title,
         activityId,
         actorId: uid,
+        route: `/activity/${activityId}/participants`,
       });
     }
 
@@ -980,6 +995,7 @@ app.post('/respond-join-request', authenticate, async (req, res, next) => {
       body: title,
       activityId,
       actorId: uid,
+      route: `/activity/${activityId}`,
     });
 
     res.json({ ok: true });
@@ -1099,6 +1115,7 @@ app.post('/notify-chat-message', authenticate, async (req, res, next) => {
             body: `${title}: ${text}`,
             activityId,
             actorId: uid,
+            route: `/chat/${activityId}`,
           }),
         ),
     );
@@ -1110,6 +1127,7 @@ app.post('/notify-chat-message', authenticate, async (req, res, next) => {
         body: `${title}: ${text}`,
         activityId,
         actorId: uid,
+        route: `/chat/${activityId}`,
       });
     }
 
@@ -1136,6 +1154,7 @@ async function notifyActivityParticipants(activityId, creatorId, type, title, bo
           body,
           activityId,
           actorId: creatorId,
+          route: `/activity/${activityId}`,
         }),
       ),
   );
@@ -1957,6 +1976,7 @@ app.post('/notify-private-message', authenticate, async (req, res, next) => {
       title: senderName,
       body: preview || 'Nova mensagem',
       actorId: uid,
+      route: `/message/${uid}`,
     });
 
     res.json({ ok: true });
@@ -2809,6 +2829,7 @@ app.post(
 
       if (![
         'business',
+        'professional',
         'organizer',
         'institution',
       ].includes(accountType)) {
@@ -2960,6 +2981,25 @@ app.post(
                   .serverTimestamp(),
             },
           );
+
+          transaction.set(
+            db.collection('users').doc(uid),
+            {
+              accountMode:
+                accountType === 'professional'
+                  ? 'professional'
+                  : accountType === 'business'
+                    ? 'business'
+                    : 'organizer',
+              commercialSignupType:
+                accountType,
+              profileCompleted: true,
+              updatedAt:
+                FieldValue
+                  .serverTimestamp(),
+            },
+            { merge: true },
+          );
         },
       );
 
@@ -3077,6 +3117,27 @@ app.post(
                 req.body?.state || '',
               );
 
+          const nextAccountType =
+            optionalString(
+              req.body?.accountType,
+              30,
+            ) ||
+            old.accountType ||
+            'business';
+
+          if (![
+            'business',
+            'professional',
+            'organizer',
+            'institution',
+          ].includes(nextAccountType)) {
+            throw new ApiError(
+              400,
+              'invalid-account-type',
+              'Tipo de conta comercial inválido.',
+            );
+          }
+
           transaction.update(
             ref,
             {
@@ -3165,12 +3226,7 @@ app.post(
                   100,
                 ),
               accountType:
-                optionalString(
-                  req.body?.accountType,
-                  30,
-                ) ||
-                old.accountType ||
-                'business',
+                nextAccountType,
               institutionType:
                 optionalString(
                   req.body
@@ -3188,6 +3244,25 @@ app.post(
                 FieldValue
                   .serverTimestamp(),
             },
+          );
+
+          transaction.set(
+            db.collection('users').doc(uid),
+            {
+              accountMode:
+                nextAccountType === 'professional'
+                  ? 'professional'
+                  : nextAccountType === 'business'
+                    ? 'business'
+                    : 'organizer',
+              commercialSignupType:
+                nextAccountType,
+              profileCompleted: true,
+              updatedAt:
+                FieldValue
+                  .serverTimestamp(),
+            },
+            { merge: true },
           );
         },
       );

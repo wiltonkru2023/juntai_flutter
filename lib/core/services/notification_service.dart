@@ -157,6 +157,10 @@ class NotificationService {
     await _local.cancelAll();
   }
 
+  void openRoute(String route) {
+    _openRoute(route);
+  }
+
   bool flushPendingNavigation() {
     final route = _normalizeRoute(_pendingRoute);
     if (route == null) return false;
@@ -380,10 +384,14 @@ class NotificationService {
   }
 
   void _openRoute(String route) {
-    final normalizedRoute = _normalizeRoute(route);
+    var normalizedRoute = _normalizeRoute(route);
 
     if (normalizedRoute == null) {
       return;
+    }
+
+    if (!_isKnownAppRoute(normalizedRoute)) {
+      normalizedRoute = '/notifications';
     }
 
     final context = notificationNavigatorKey.currentContext;
@@ -397,12 +405,27 @@ class NotificationService {
     }
 
     try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null && !_isPublicRoute(normalizedRoute)) {
+        _pendingRoute = normalizedRoute;
+        GoRouter.of(context).go('/login');
+        return;
+      }
+
       GoRouter.of(context).go(normalizedRoute);
     } catch (_) {
-      _pendingRoute = normalizedRoute;
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        flushPendingNavigation();
-      });
+      if (normalizedRoute == '/notifications') {
+        return;
+      }
+
+      _pendingRoute = '/notifications';
+      try {
+        GoRouter.of(context).go('/notifications');
+      } catch (_) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          flushPendingNavigation();
+        });
+      }
     }
   }
 
@@ -425,6 +448,69 @@ class NotificationService {
     }
 
     return route.startsWith('/') ? route : '/$route';
+  }
+
+  bool _isPublicRoute(String route) {
+    final path = Uri.tryParse(route)?.path ?? route;
+    return path == '/splash' ||
+        path == '/onboarding' ||
+        path == '/login' ||
+        path == '/register' ||
+        path == '/forgot-password' ||
+        path == '/verify-email' ||
+        path == '/terms' ||
+        path == '/privacy-policy' ||
+        path == '/help';
+  }
+
+  bool _isKnownAppRoute(String route) {
+    final path = Uri.tryParse(route)?.path ?? route;
+
+    if (_isPublicRoute(path)) return true;
+
+    const exact = {
+      '/home',
+      '/map',
+      '/activity/create',
+      '/discover',
+      '/business',
+      '/business/create',
+      '/business/edit',
+      '/business/plans',
+      '/business/post/create',
+      '/chats',
+      '/profile',
+      '/profile/edit',
+      '/profile/username/change',
+      '/settings',
+      '/privacy',
+      '/blocked-users',
+      '/search',
+      '/filters',
+      '/notifications',
+      '/complete-profile',
+      '/location-permission',
+    };
+
+    if (exact.contains(path)) return true;
+
+    return RegExp(r'^/activity/[^/]+$').hasMatch(path) ||
+        RegExp(r'^/activity/[^/]+/edit$').hasMatch(path) ||
+        RegExp(r'^/activity/[^/]+/participants$').hasMatch(path) ||
+        RegExp(r'^/activity/from-post/[^/]+$').hasMatch(path) ||
+        RegExp(r'^/chat/[^/]+$').hasMatch(path) ||
+        RegExp(r'^/message/[^/]+$').hasMatch(path) ||
+        RegExp(r'^/discovery/[^/]+$').hasMatch(path) ||
+        RegExp(r'^/business/[^/]+$').hasMatch(path) ||
+        RegExp(r'^/business/[^/]+/dashboard$').hasMatch(path) ||
+        RegExp(r'^/business/[^/]+/metrics$').hasMatch(path) ||
+        RegExp(r'^/business/post/[^/]+/sponsor$').hasMatch(path) ||
+        RegExp(r'^/business/post/[^/]+/edit$').hasMatch(path) ||
+        RegExp(r'^/benefit/[^/]+$').hasMatch(path) ||
+        RegExp(r'^/followers/[^/]+$').hasMatch(path) ||
+        RegExp(r'^/following/[^/]+$').hasMatch(path) ||
+        RegExp(r'^/profile/user/[^/]+$').hasMatch(path) ||
+        RegExp(r'^/profile/username/[^/]+$').hasMatch(path);
   }
 
   Future<void> dispose() async {

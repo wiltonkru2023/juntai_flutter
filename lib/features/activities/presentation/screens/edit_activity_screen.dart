@@ -12,6 +12,7 @@ import '../../../../core/services/api_service.dart';
 import '../../../../core/services/image_upload_service.dart';
 import '../../../../core/widgets/address_autocomplete_field.dart';
 import '../../../../core/widgets/app_button.dart';
+import '../../../../core/widgets/app_network_image.dart';
 import '../../../../core/widgets/app_text_field.dart';
 import '../../../../shared/enums/activity_category.dart';
 import '../../../../shared/models/activity.dart';
@@ -426,24 +427,11 @@ class _EditActivityScreenState extends State<EditActivityScreen> {
                 ),
                 const SizedBox(height: 18),
                 if (coverUrl != null && coverUrl!.isNotEmpty) ...[
-                  ClipRRect(
+                  AppNetworkImage(
+                    url: coverUrl,
+                    width: double.infinity,
+                    height: 190,
                     borderRadius: BorderRadius.circular(20),
-                    child: Image.network(
-                      coverUrl!,
-                      width: double.infinity,
-                      height: 190,
-                      fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => Container(
-                        height: 190,
-                        color: AppColors.primaryLight,
-                        alignment: Alignment.center,
-                        child: const Icon(
-                          Icons.broken_image_outlined,
-                          size: 54,
-                          color: AppColors.primary,
-                        ),
-                      ),
-                    ),
                   ),
                   const SizedBox(height: 10),
                 ],

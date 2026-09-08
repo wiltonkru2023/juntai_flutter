@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../app/theme/app_colors.dart';
+import '../../../../core/widgets/app_avatar.dart';
 
 class BusinessCenterScreen extends StatelessWidget {
   const BusinessCenterScreen({super.key});
@@ -91,14 +92,10 @@ class BusinessCenterScreen extends StatelessWidget {
             children: [
               Row(
                 children: [
-                  CircleAvatar(
-                    radius: 34,
-                    backgroundImage: (d['photoUrl'] ?? '').toString().isNotEmpty
-                        ? NetworkImage(d['photoUrl'].toString())
-                        : null,
-                    child: (d['photoUrl'] ?? '').toString().isEmpty
-                        ? const Icon(Icons.store_rounded)
-                        : null,
+                  AppAvatar(
+                    name: (d['name'] ?? 'Comércio').toString(),
+                    photoUrl: (d['photoUrl'] ?? '').toString(),
+                    size: 68,
                   ),
                   const SizedBox(width: 14),
                   Expanded(

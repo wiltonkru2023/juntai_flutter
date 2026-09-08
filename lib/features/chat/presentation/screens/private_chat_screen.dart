@@ -39,7 +39,9 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
   bool viewOnceAudio = false;
   int recordingSeconds = 0;
 
-  String get uid => FirebaseAuth.instance.currentUser!.uid;
+  String? get currentUid => FirebaseAuth.instance.currentUser?.uid;
+
+  String get uid => currentUid ?? '';
 
   String get conversationId {
     final ids = [uid, widget.otherUserId]..sort();
@@ -295,6 +297,8 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
   }
 
   Future<List<Activity>> _futureActivities() async {
+    if (uid.isEmpty) return const <Activity>[];
+
     final memberships = await FirebaseFirestore.instance
         .collectionGroup('participants')
         .where('userId', isEqualTo: uid)
@@ -556,164 +560,244 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
   }
 
   @override
-  Widget build(BuildContext context) =>
-      FutureBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-        future: FirebaseFirestore.instance
-            .collection('users')
-            .doc(widget.otherUserId)
-            .get(),
-        builder: (context, userSnapshot) {
-          final name =
-              (userSnapshot.data?.data()?['name'] ?? 'Usuário').toString();
+  Widget build(BuildContext context) {
+    final currentUser = FirebaseAuth.instance.currentUser;
 
-          return Scaffold(
-            appBar: AppBar(title: Text(name)),
-            body: Column(
+    if (currentUser == null) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('Conversa')),
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(28),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
               children: [
-                Expanded(
-                  child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-                    stream: conversation
-                        .collection('messages')
-                        .orderBy('createdAt')
-                        .limitToLast(100)
-                        .snapshots(),
-                    builder: (context, snapshot) {
-                      final docs = snapshot.data?.docs ?? [];
-                      _markReceived(docs);
-
-                      final visibleDocs = docs.where((doc) {
-                        final hiddenFor = doc.data()['hiddenFor'];
-                        return !(hiddenFor is List && hiddenFor.contains(uid));
-                      }).toList();
-
-                      if (visibleDocs.isEmpty) {
-                        return const Center(
-                          child: Padding(
-                            padding: EdgeInsets.all(28),
-                            child: Text(
-                              'Envie uma mensagem ou digite /lista para compartilhar uma atividade.',
-                              textAlign: TextAlign.center,
-                            ),
-                          ),
-                        );
-                      }
-
-                      return ListView.builder(
-                        padding: const EdgeInsets.all(16),
-                        itemCount: visibleDocs.length,
-                        itemBuilder: (context, index) {
-                          final doc = visibleDocs[index];
-                          final data = doc.data();
-                          final deleted = data['deletedForEveryone'] == true;
-
-                          if (data['type'] == 'activity' && !deleted) {
-                            final mine = data['senderId'] == uid;
-                            final message = _chatMessageFromData(
-                              doc,
-                              data,
-                              name,
-                            );
-
-                            return GestureDetector(
-                              onLongPress: () =>
-                                  _showMessageActions(doc.reference, message),
-                              child: Align(
-                                alignment: mine
-                                    ? Alignment.centerRight
-                                    : Alignment.centerLeft,
-                                child: InkWell(
-                                  onTap: () => context.push(
-                                    '/activity/${data['activityId']}',
-                                  ),
-                                  child: Container(
-                                    margin: const EdgeInsets.only(bottom: 12),
-                                    padding: const EdgeInsets.all(14),
-                                    constraints:
-                                        const BoxConstraints(maxWidth: 300),
-                                    decoration: BoxDecoration(
-                                      color: mine
-                                          ? AppColors.primaryLight
-                                          : Colors.white,
-                                      border:
-                                          Border.all(color: AppColors.border),
-                                      borderRadius: BorderRadius.circular(18),
-                                    ),
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        const Text(
-                                          '📅 Convite de atividade',
-                                          style: TextStyle(
-                                            fontWeight: FontWeight.w800,
-                                          ),
-                                        ),
-                                        const SizedBox(height: 8),
-                                        Text(
-                                          (data['activityTitle'] ??
-                                                  data['text'])
-                                              .toString(),
-                                        ),
-                                        const SizedBox(height: 6),
-                                        const Text(
-                                          'Toque para ver detalhes',
-                                          style: TextStyle(
-                                            color: AppColors.primary,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            );
-                          }
-
-                          final message = _chatMessageFromData(doc, data, name);
-
-                          return MessageBubble(
-                            message: message,
-                            showDeliveryStatus: true,
-                            onOptions: () =>
-                                _showMessageActions(doc.reference, message),
-                            onAudioConsumed: message.viewOnce && !message.mine
-                                ? () => doc.reference.update({
-                                      'audioUrl': null,
-                                      'audioBase64': null,
-                                      'consumedBy': uid,
-                                      'consumedAt':
-                                          FieldValue.serverTimestamp(),
-                                    })
-                                : null,
-                          );
-                        },
-                      );
-                    },
+                const Icon(
+                  Icons.lock_outline_rounded,
+                  color: AppColors.primary,
+                  size: 54,
+                ),
+                const SizedBox(height: 14),
+                const Text(
+                  'Entre para abrir a conversa',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w800,
                   ),
                 ),
-                SafeArea(
-                  top: false,
-                  child: ChatInput(
-                    controller: input,
-                    onSend: _send,
-                    onImage: _sendImage,
-                    onRecordStart: _startRecording,
-                    onRecordStop: _stopRecording,
-                    onRecordCancel: _cancelRecording,
-                    recording: recording,
-                    recordingSeconds: recordingSeconds,
-                    viewOnceAudio: viewOnceAudio,
-                    onViewOnceChanged: (value) =>
-                        setState(() => viewOnceAudio = value),
-                    sending: sending,
-                    uploadingImage: uploadingImage,
-                  ),
+                const SizedBox(height: 8),
+                const Text(
+                  'Sua sessão ainda está carregando ou expirou.',
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 18),
+                FilledButton(
+                  onPressed: () => context.go('/login'),
+                  child: const Text('Entrar'),
                 ),
               ],
             ),
-          );
-        },
+          ),
+        ),
       );
+    }
+
+    return FutureBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+      future: FirebaseFirestore.instance
+          .collection('users')
+          .doc(widget.otherUserId)
+          .get(),
+      builder: (context, userSnapshot) {
+        final name =
+            (userSnapshot.data?.data()?['name'] ?? 'Usuário').toString();
+
+        if (widget.otherUserId == currentUser.uid) {
+          return Scaffold(
+            appBar: AppBar(title: const Text('Conversa')),
+            body: Center(
+              child: Padding(
+                padding: const EdgeInsets.all(28),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(
+                      Icons.forum_outlined,
+                      size: 52,
+                      color: AppColors.primary,
+                    ),
+                    const SizedBox(height: 12),
+                    const Text(
+                      'Esta conversa não está disponível.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    const Text(
+                      'A notificação apontou para o próprio perfil. Abra suas conversas para continuar.',
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 18),
+                    FilledButton(
+                      onPressed: () => context.go('/chats'),
+                      child: const Text('Ver conversas'),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          );
+        }
+
+        return Scaffold(
+          appBar: AppBar(title: Text(name)),
+          body: Column(
+            children: [
+              Expanded(
+                child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+                  stream: conversation
+                      .collection('messages')
+                      .orderBy('createdAt')
+                      .limitToLast(100)
+                      .snapshots(),
+                  builder: (context, snapshot) {
+                    final docs = snapshot.data?.docs ?? [];
+                    _markReceived(docs);
+
+                    final visibleDocs = docs.where((doc) {
+                      final hiddenFor = doc.data()['hiddenFor'];
+                      return !(hiddenFor is List && hiddenFor.contains(uid));
+                    }).toList();
+
+                    if (visibleDocs.isEmpty) {
+                      return const Center(
+                        child: Padding(
+                          padding: EdgeInsets.all(28),
+                          child: Text(
+                            'Envie uma mensagem ou digite /lista para compartilhar uma atividade.',
+                            textAlign: TextAlign.center,
+                          ),
+                        ),
+                      );
+                    }
+
+                    return ListView.builder(
+                      padding: const EdgeInsets.all(16),
+                      itemCount: visibleDocs.length,
+                      itemBuilder: (context, index) {
+                        final doc = visibleDocs[index];
+                        final data = doc.data();
+                        final deleted = data['deletedForEveryone'] == true;
+
+                        if (data['type'] == 'activity' && !deleted) {
+                          final mine = data['senderId'] == uid;
+                          final message = _chatMessageFromData(
+                            doc,
+                            data,
+                            name,
+                          );
+
+                          return GestureDetector(
+                            onLongPress: () =>
+                                _showMessageActions(doc.reference, message),
+                            child: Align(
+                              alignment: mine
+                                  ? Alignment.centerRight
+                                  : Alignment.centerLeft,
+                              child: InkWell(
+                                onTap: () => context.push(
+                                  '/activity/${data['activityId']}',
+                                ),
+                                child: Container(
+                                  margin: const EdgeInsets.only(bottom: 12),
+                                  padding: const EdgeInsets.all(14),
+                                  constraints:
+                                      const BoxConstraints(maxWidth: 300),
+                                  decoration: BoxDecoration(
+                                    color: mine
+                                        ? AppColors.primaryLight
+                                        : Colors.white,
+                                    border: Border.all(color: AppColors.border),
+                                    borderRadius: BorderRadius.circular(18),
+                                  ),
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      const Text(
+                                        '📅 Convite de atividade',
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.w800,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 8),
+                                      Text(
+                                        (data['activityTitle'] ?? data['text'])
+                                            .toString(),
+                                      ),
+                                      const SizedBox(height: 6),
+                                      const Text(
+                                        'Toque para ver detalhes',
+                                        style: TextStyle(
+                                          color: AppColors.primary,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                          );
+                        }
+
+                        final message = _chatMessageFromData(doc, data, name);
+
+                        return MessageBubble(
+                          message: message,
+                          showDeliveryStatus: true,
+                          onOptions: () =>
+                              _showMessageActions(doc.reference, message),
+                          onAudioConsumed: message.viewOnce && !message.mine
+                              ? () => doc.reference.update({
+                                    'audioUrl': null,
+                                    'audioBase64': null,
+                                    'consumedBy': uid,
+                                    'consumedAt': FieldValue.serverTimestamp(),
+                                  })
+                              : null,
+                        );
+                      },
+                    );
+                  },
+                ),
+              ),
+              SafeArea(
+                top: false,
+                child: ChatInput(
+                  controller: input,
+                  onSend: _send,
+                  onImage: _sendImage,
+                  onRecordStart: _startRecording,
+                  onRecordStop: _stopRecording,
+                  onRecordCancel: _cancelRecording,
+                  recording: recording,
+                  recordingSeconds: recordingSeconds,
+                  viewOnceAudio: viewOnceAudio,
+                  onViewOnceChanged: (value) =>
+                      setState(() => viewOnceAudio = value),
+                  sending: sending,
+                  uploadingImage: uploadingImage,
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
 
   ChatMessage _chatMessageFromData(
     QueryDocumentSnapshot<Map<String, dynamic>> doc,

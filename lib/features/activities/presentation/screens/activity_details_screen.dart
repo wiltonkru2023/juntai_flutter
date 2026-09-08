@@ -9,6 +9,7 @@ import '../../../../app/theme/app_colors.dart';
 import '../../../../core/extensions/context_extensions.dart';
 import '../../../../core/services/api_service.dart';
 import '../../../../core/widgets/app_button.dart';
+import '../../../../core/widgets/app_network_image.dart';
 import '../../../../shared/enums/activity_category.dart';
 import '../../../../shared/models/activity.dart';
 import '../../../moderation/presentation/report_activity_sheet.dart';
@@ -821,18 +822,11 @@ class _ActivityHeaderImage extends StatelessWidget {
     return Stack(
       fit: StackFit.expand,
       children: [
-        Image.network(
-          cover,
+        AppNetworkImage(
+          url: cover,
           fit: BoxFit.cover,
-          errorBuilder: (_, __, ___) => Container(
-            color: activity.category.color.withValues(alpha: .12),
-            alignment: Alignment.center,
-            child: Icon(
-              activity.category.icon,
-              size: 100,
-              color: activity.category.color,
-            ),
-          ),
+          borderRadius: BorderRadius.zero,
+          backgroundColor: activity.category.color.withValues(alpha: .12),
         ),
         DecoratedBox(
           decoration: BoxDecoration(

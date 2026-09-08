@@ -7,6 +7,8 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../../../app/theme/app_colors.dart';
 import '../../../../core/extensions/context_extensions.dart';
 import '../../../../core/services/api_service.dart';
+import '../../../../core/widgets/app_avatar.dart';
+import '../../../../core/widgets/app_network_image.dart';
 import '../../domain/discovery.dart';
 import '../widgets/discovery_card.dart';
 
@@ -68,8 +70,11 @@ class _BusinessProfileScreenState extends State<BusinessProfileScreen> {
                                 color: AppColors.primary,
                               ),
                             )
-                          : Image.network(d['coverUrl'].toString(),
-                              fit: BoxFit.cover),
+                          : AppNetworkImage(
+                              url: d['coverUrl'].toString(),
+                              fit: BoxFit.cover,
+                              borderRadius: BorderRadius.zero,
+                            ),
                     ),
                   ),
                   SliverToBoxAdapter(
@@ -109,6 +114,7 @@ class _Header extends StatelessWidget {
         .collection('followers')
         .doc(uid);
     final photo = (data['photoUrl'] ?? '').toString();
+    final name = (data['name'] ?? 'Comércio').toString();
     final rating = (data['rating'] as num?)?.toDouble() ?? 0;
 
     return Padding(
@@ -118,12 +124,10 @@ class _Header extends StatelessWidget {
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              CircleAvatar(
-                radius: 38,
-                backgroundImage: photo.isEmpty ? null : NetworkImage(photo),
-                child: photo.isEmpty
-                    ? const Icon(Icons.store_rounded, size: 34)
-                    : null,
+              AppAvatar(
+                name: name,
+                photoUrl: photo,
+                size: 76,
               ),
               const SizedBox(width: 13),
               Expanded(
@@ -134,7 +138,7 @@ class _Header extends StatelessWidget {
                       children: [
                         Flexible(
                           child: Text(
-                            (data['name'] ?? '').toString(),
+                            name,
                             style: const TextStyle(
                               fontSize: 25,
                               fontWeight: FontWeight.w900,
@@ -368,7 +372,11 @@ class _PhotosTab extends StatelessWidget {
         mainAxisSpacing: 5,
       ),
       itemCount: urls.length,
-      itemBuilder: (_, i) => Image.network(urls[i], fit: BoxFit.cover),
+      itemBuilder: (_, i) => AppNetworkImage(
+        url: urls[i],
+        fit: BoxFit.cover,
+        borderRadius: BorderRadius.circular(10),
+      ),
     );
   }
 }

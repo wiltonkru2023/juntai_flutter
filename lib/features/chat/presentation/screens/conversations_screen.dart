@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../app/theme/app_colors.dart';
+import '../../../../core/widgets/app_avatar.dart';
 import '../../../../core/widgets/app_search_field.dart';
 import '../widgets/conversation_tile.dart';
 
@@ -33,6 +34,7 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
   final Map<String, _ConversationRow> rows = {};
 
   String query = '';
+  String tab = 'people';
   bool loading = true;
   String? error;
 
@@ -272,102 +274,208 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
               },
             ),
           ),
+          const SizedBox(height: 12),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: _ConversationTabs(
+              value: tab,
+              onChanged: (value) => setState(() => tab = value),
+            ),
+          ),
           const SizedBox(height: 10),
-          _PrivateConversations(query: query),
-          Expanded(
-            child: loading
-                ? const Center(child: CircularProgressIndicator())
-                : error != null
-                    ? Center(
-                        child: Padding(
-                          padding: const EdgeInsets.all(24),
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              const Icon(
-                                Icons.error_outline_rounded,
-                                color: AppColors.error,
-                                size: 42,
-                              ),
-                              const SizedBox(height: 12),
-                              Text(
-                                error!,
-                                textAlign: TextAlign.center,
-                                style: const TextStyle(
+          if (tab == 'people')
+            Expanded(child: _PrivateConversations(query: query)),
+          if (tab == 'groups')
+            Expanded(
+              child: loading
+                  ? const Center(child: CircularProgressIndicator())
+                  : error != null
+                      ? Center(
+                          child: Padding(
+                            padding: const EdgeInsets.all(24),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(
+                                  Icons.error_outline_rounded,
                                   color: AppColors.error,
+                                  size: 42,
                                 ),
-                              ),
-                              const SizedBox(height: 16),
-                              OutlinedButton.icon(
-                                onPressed: () {
-                                  setState(() {
-                                    loading = true;
-                                    error = null;
-                                  });
-                                  membershipSubscription?.cancel();
-                                  _start();
-                                },
-                                icon: const Icon(Icons.refresh_rounded),
-                                label: const Text('Tentar novamente'),
-                              ),
-                            ],
-                          ),
-                        ),
-                      )
-                    : conversationRows.isEmpty
-                        ? Center(
-                            child: Padding(
-                              padding: const EdgeInsets.all(28),
-                              child: Column(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Image.asset(
-                                    'assets/icons/icone_mensagens.png',
-                                    height: 72,
-                                    fit: BoxFit.contain,
+                                const SizedBox(height: 12),
+                                Text(
+                                  error!,
+                                  textAlign: TextAlign.center,
+                                  style: const TextStyle(
+                                    color: AppColors.error,
                                   ),
-                                  const SizedBox(height: 14),
-                                  const Text(
-                                    'Nenhuma conversa ainda.',
-                                    style: TextStyle(
-                                      fontSize: 18,
-                                      fontWeight: FontWeight.w900,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 6),
-                                  const Text(
-                                    'Entre em uma atividade ou mande mensagem para alguém.',
-                                    textAlign: TextAlign.center,
-                                    style: TextStyle(
-                                      color: AppColors.textSecondary,
-                                      height: 1.35,
-                                    ),
-                                  ),
-                                ],
-                              ),
+                                ),
+                                const SizedBox(height: 16),
+                                OutlinedButton.icon(
+                                  onPressed: () {
+                                    setState(() {
+                                      loading = true;
+                                      error = null;
+                                    });
+                                    membershipSubscription?.cancel();
+                                    _start();
+                                  },
+                                  icon: const Icon(Icons.refresh_rounded),
+                                  label: const Text('Tentar novamente'),
+                                ),
+                              ],
                             ),
-                          )
-                        : ListView.separated(
-                            padding: const EdgeInsets.only(bottom: 16),
-                            itemCount: conversationRows.length,
-                            itemBuilder: (context, index) {
-                              final row = conversationRows[index];
-
-                              return ConversationTile(
-                                title: row.title,
-                                lastMessage: row.lastMessage,
-                                time: _formatTime(row.time),
-                                unread: row.unread,
-                                onTap: () => context.go(
-                                  '/chat/${row.id}',
-                                ),
-                              );
-                            },
-                            separatorBuilder: (_, __) =>
-                                const SizedBox(height: 2),
                           ),
+                        )
+                      : conversationRows.isEmpty
+                          ? Center(
+                              child: Padding(
+                                padding: const EdgeInsets.all(28),
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Image.asset(
+                                      'assets/icons/icone_mensagens.png',
+                                      height: 72,
+                                      fit: BoxFit.contain,
+                                    ),
+                                    const SizedBox(height: 14),
+                                    const Text(
+                                      'Nenhum grupo ainda.',
+                                      style: TextStyle(
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.w900,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 6),
+                                    const Text(
+                                      'Entre em uma atividade para abrir o chat do grupo.',
+                                      textAlign: TextAlign.center,
+                                      style: TextStyle(
+                                        color: AppColors.textSecondary,
+                                        height: 1.35,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            )
+                          : ListView.separated(
+                              padding: const EdgeInsets.only(bottom: 16),
+                              itemCount: conversationRows.length,
+                              itemBuilder: (context, index) {
+                                final row = conversationRows[index];
+
+                                return ConversationTile(
+                                  title: row.title,
+                                  lastMessage: row.lastMessage,
+                                  time: _formatTime(row.time),
+                                  unread: row.unread,
+                                  onTap: () => context.go(
+                                    '/chat/${row.id}',
+                                  ),
+                                );
+                              },
+                              separatorBuilder: (_, __) =>
+                                  const SizedBox(height: 2),
+                            ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ConversationTabs extends StatelessWidget {
+  const _ConversationTabs({
+    required this.value,
+    required this.onChanged,
+  });
+
+  final String value;
+  final ValueChanged<String> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(5),
+      decoration: BoxDecoration(
+        color: AppColors.primaryLight,
+        borderRadius: BorderRadius.circular(18),
+      ),
+      child: Row(
+        children: [
+          _TabButton(
+            selected: value == 'people',
+            icon: Icons.person_rounded,
+            label: 'Pessoas',
+            onTap: () => onChanged('people'),
+          ),
+          _TabButton(
+            selected: value == 'groups',
+            icon: Icons.groups_rounded,
+            label: 'Grupos',
+            onTap: () => onChanged('groups'),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _TabButton extends StatelessWidget {
+  const _TabButton({
+    required this.selected,
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
+
+  final bool selected;
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(14),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          padding: const EdgeInsets.symmetric(vertical: 11),
+          decoration: BoxDecoration(
+            color: selected ? Colors.white : Colors.transparent,
+            borderRadius: BorderRadius.circular(14),
+            boxShadow: selected
+                ? [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: .06),
+                      blurRadius: 10,
+                      offset: const Offset(0, 3),
+                    ),
+                  ]
+                : null,
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                icon,
+                size: 19,
+                color: selected ? AppColors.primary : AppColors.textSecondary,
+              ),
+              const SizedBox(width: 7),
+              Text(
+                label,
+                style: TextStyle(
+                  color: selected ? AppColors.primary : AppColors.textSecondary,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -392,7 +500,9 @@ class _PrivateConversations extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final uid = FirebaseAuth.instance.currentUser?.uid;
-    if (uid == null) return const SizedBox.shrink();
+    if (uid == null) {
+      return const Center(child: Text('Faça login para ver suas mensagens.'));
+    }
     return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
       stream: FirebaseFirestore.instance
           .collection('private_conversations')
@@ -410,63 +520,88 @@ class _PrivateConversations extends StatelessWidget {
                 .compareTo((a.data()['updatedAt'] as Timestamp?)
                         ?.millisecondsSinceEpoch ??
                     0));
-        if (docs.isEmpty) return const SizedBox.shrink();
+        if (docs.isEmpty) {
+          return Center(
+            child: Padding(
+              padding: const EdgeInsets.all(28),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Image.asset(
+                    'assets/icons/icone_mensagens.png',
+                    height: 78,
+                    fit: BoxFit.contain,
+                  ),
+                  const SizedBox(height: 14),
+                  const Text(
+                    'Nenhuma mensagem privada.',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900),
+                  ),
+                  const SizedBox(height: 6),
+                  const Text(
+                    'Abra o perfil de uma pessoa e toque em Mensagem.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: AppColors.textSecondary,
+                      height: 1.35,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        }
         return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           const Padding(
               padding: EdgeInsets.fromLTRB(20, 4, 20, 6),
               child: Text('Mensagens privadas',
                   style: TextStyle(fontWeight: FontWeight.w800))),
-          ConstrainedBox(
-              constraints: const BoxConstraints(maxHeight: 260),
+          Expanded(
               child: ListView.separated(
-                padding: const EdgeInsets.only(bottom: 8),
-                shrinkWrap: true,
-                itemCount: docs.length,
-                separatorBuilder: (_, __) =>
-                    const Divider(height: 1, indent: 72),
-                itemBuilder: (context, index) {
-                  final data = docs[index].data();
-                  _markDelivered(docs[index].reference, data, uid);
-                  final participants =
-                      List<String>.from(data['participants'] ?? const []);
-                  final other = participants.firstWhere((id) => id != uid,
-                      orElse: () => '');
-                  return FutureBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-                    future: FirebaseFirestore.instance
-                        .collection('users')
-                        .doc(other)
-                        .get(),
-                    builder: (context, user) {
-                      final profile =
-                          user.data?.data() ?? const <String, dynamic>{};
-                      final name = (profile['name'] ?? 'Usuário').toString();
-                      final updated =
-                          (data['updatedAt'] as Timestamp?)?.toDate() ??
-                              DateTime.now();
-                      return ListTile(
-                        leading: CircleAvatar(
-                            child: Text(
-                                name.isEmpty ? '?' : name[0].toUpperCase())),
-                        title: Text(name,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style:
-                                const TextStyle(fontWeight: FontWeight.w700)),
-                        subtitle: Text(
-                            (data['lastMessage'] ?? 'Conversa iniciada')
-                                .toString(),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis),
-                        trailing: Text(
-                            '${updated.hour.toString().padLeft(2, '0')}:${updated.minute.toString().padLeft(2, '0')}',
-                            style: const TextStyle(
-                                fontSize: 12, color: AppColors.textSecondary)),
-                        onTap: () => context.push('/message/$other'),
-                      );
-                    },
+            padding: const EdgeInsets.only(bottom: 16),
+            itemCount: docs.length,
+            separatorBuilder: (_, __) => const Divider(height: 1, indent: 72),
+            itemBuilder: (context, index) {
+              final data = docs[index].data();
+              _markDelivered(docs[index].reference, data, uid);
+              final participants =
+                  List<String>.from(data['participants'] ?? const []);
+              final other =
+                  participants.firstWhere((id) => id != uid, orElse: () => '');
+              return FutureBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+                future: FirebaseFirestore.instance
+                    .collection('users')
+                    .doc(other)
+                    .get(),
+                builder: (context, user) {
+                  final profile =
+                      user.data?.data() ?? const <String, dynamic>{};
+                  final name = (profile['name'] ?? 'Usuário').toString();
+                  final updated = (data['updatedAt'] as Timestamp?)?.toDate() ??
+                      DateTime.now();
+                  return ListTile(
+                    leading: AppAvatar(
+                      name: name,
+                      photoUrl: profile['photoUrl']?.toString(),
+                    ),
+                    title: Text(name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(fontWeight: FontWeight.w700)),
+                    subtitle: Text(
+                        (data['lastMessage'] ?? 'Conversa iniciada').toString(),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis),
+                    trailing: Text(
+                        '${updated.hour.toString().padLeft(2, '0')}:${updated.minute.toString().padLeft(2, '0')}',
+                        style: const TextStyle(
+                            fontSize: 12, color: AppColors.textSecondary)),
+                    onTap: () => context.push('/message/$other'),
                   );
                 },
-              )),
+              );
+            },
+          )),
         ]);
       },
     );

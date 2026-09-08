@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/extensions/context_extensions.dart';
 import '../../../../core/services/api_service.dart';
 import '../../../../core/services/image_upload_service.dart';
+import '../../../../core/widgets/app_network_image.dart';
 
 class CreateDiscoveryScreen extends StatefulWidget {
   const CreateDiscoveryScreen({super.key, this.postId});
@@ -412,14 +413,11 @@ class _CreateDiscoveryScreenState extends State<CreateDiscoveryScreen> {
                   ],
                   field(cta, 'Texto do botão'),
                   if ((coverUrl ?? '').isNotEmpty)
-                    ClipRRect(
+                    AppNetworkImage(
+                      url: coverUrl,
+                      height: 190,
+                      width: double.infinity,
                       borderRadius: BorderRadius.circular(18),
-                      child: Image.network(
-                        coverUrl!,
-                        height: 190,
-                        width: double.infinity,
-                        fit: BoxFit.cover,
-                      ),
                     ),
                   OutlinedButton.icon(
                     onPressed: () async {
@@ -442,8 +440,12 @@ class _CreateDiscoveryScreenState extends State<CreateDiscoveryScreen> {
                       for (final url in galleryUrls)
                         Stack(
                           children: [
-                            Image.network(url,
-                                width: 80, height: 80, fit: BoxFit.cover),
+                            AppNetworkImage(
+                              url: url,
+                              width: 80,
+                              height: 80,
+                              borderRadius: BorderRadius.circular(12),
+                            ),
                             Positioned(
                               right: 0,
                               child: IconButton(

@@ -36,6 +36,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   bool obscure = true;
   bool loading = false;
   String loadingLabel = 'Entrando...';
+  String loginMode = 'personal';
 
   @override
   void dispose() {
@@ -182,7 +183,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   Future<void> loginWithApple() async {
     if (loading) return;
 
-    _setLoading(true, 'Conectando Ã  Apple...');
+    _setLoading(true, 'Conectando à Apple...');
 
     try {
       final rawNonce = _generateNonce();
@@ -411,11 +412,25 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
     if (profileCompleted) {
       if (!NotificationService.instance.flushPendingNavigation()) {
-        context.go('/home');
+        context.go(_homeFor(data));
       }
     } else {
       context.go('/complete-profile');
     }
+  }
+
+  String _homeFor(Map<String, dynamic> data) {
+    final mode = (data['accountMode'] ?? '').toString();
+
+    if (loginMode == 'personal') {
+      return '/home';
+    }
+
+    if (mode == 'commercial' || mode == 'business' || mode == 'professional') {
+      return '/business';
+    }
+
+    return '/business/create?type=$loginMode';
   }
 
   Future<String> _availableUsername(String source) async {
@@ -473,6 +488,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               const SizedBox(height: 10),
               const PeopleIllustration(height: 230),
               const SizedBox(height: 10),
+              _LoginModeSelector(
+                value: loginMode,
+                onChanged: loading
+                    ? null
+                    : (value) {
+                        setState(() => loginMode = value);
+                      },
+              ),
+              const SizedBox(height: 16),
               AppTextField(
                 controller: email,
                 hint: 'E-mail',
@@ -501,7 +525,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 ),
               ),
               AppButton(
-                label: loading ? loadingLabel : 'Entrar',
+                label: loading
+                    ? loadingLabel
+                    : loginMode == 'personal'
+                        ? 'Entrar como pessoa'
+                        : loginMode == 'professional'
+                            ? 'Entrar como profissional'
+                            : 'Entrar como comércio',
                 onPressed: loading ? null : login,
               ),
               const SizedBox(height: 12),
@@ -515,9 +545,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               OutlinedButton.icon(
                 onPressed: loading
                     ? null
-                    : () => context.go('/register?type=business'),
+                    : () => context.go('/register?type=$loginMode'),
                 icon: const Icon(Icons.storefront_rounded),
-                label: const Text('Cadastrar comércio ou profissional'),
+                label: Text(
+                  loginMode == 'professional'
+                      ? 'Cadastrar profissional'
+                      : 'Cadastrar comércio ou profissional',
+                ),
               ),
               const SizedBox(height: 20),
               const Row(
@@ -650,6 +684,91 @@ class _SocialButton extends StatelessWidget {
             borderRadius: BorderRadius.circular(20),
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _LoginModeSelector extends StatelessWidget {
+  const _LoginModeSelector({
+    required this.value,
+    required this.onChanged,
+  });
+
+  final String value;
+  final ValueChanged<String>? onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    const options = [
+      ('personal', Icons.person_rounded, 'Pessoa'),
+      ('business', Icons.storefront_rounded, 'Comércio'),
+      ('professional', Icons.badge_rounded, 'Profissional'),
+    ];
+
+    return Container(
+      padding: const EdgeInsets.all(6),
+      decoration: BoxDecoration(
+        color: AppColors.primaryLight,
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Row(
+        children: [
+          for (final option in options)
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 2),
+                child: InkWell(
+                  onTap: onChanged == null ? null : () => onChanged!(option.$1),
+                  borderRadius: BorderRadius.circular(17),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 180),
+                    padding: const EdgeInsets.symmetric(vertical: 11),
+                    decoration: BoxDecoration(
+                      color: value == option.$1
+                          ? Colors.white
+                          : Colors.transparent,
+                      borderRadius: BorderRadius.circular(17),
+                      boxShadow: value == option.$1
+                          ? [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: .07),
+                                blurRadius: 12,
+                                offset: const Offset(0, 4),
+                              ),
+                            ]
+                          : null,
+                    ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          option.$2,
+                          color: value == option.$1
+                              ? AppColors.primary
+                              : AppColors.textSecondary,
+                          size: 20,
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          option.$3,
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            color: value == option.$1
+                                ? AppColors.primary
+                                : AppColors.textSecondary,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+        ],
       ),
     );
   }

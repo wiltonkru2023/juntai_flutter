@@ -8,6 +8,7 @@ import 'package:path_provider/path_provider.dart';
 
 import '../../../../app/theme/app_colors.dart';
 import '../../../../core/widgets/app_avatar.dart';
+import '../../../../core/widgets/app_network_image.dart';
 import '../../../../shared/models/chat_message.dart';
 
 class MessageBubble extends StatelessWidget {
@@ -233,37 +234,11 @@ class _ChatImage extends StatelessWidget {
       );
     }
 
-    final preview = ClipRRect(
+    final preview = AppNetworkImage(
+      url: value,
+      width: 230,
+      height: 170,
       borderRadius: BorderRadius.circular(14),
-      child: Image.network(
-        value,
-        width: 230,
-        height: 170,
-        fit: BoxFit.cover,
-        loadingBuilder: (context, child, progress) {
-          if (progress == null) return child;
-          return const SizedBox(
-            width: 230,
-            height: 170,
-            child: Center(
-              child: CircularProgressIndicator(strokeWidth: 2),
-            ),
-          );
-        },
-        errorBuilder: (_, __, ___) {
-          return Container(
-            width: 230,
-            height: 170,
-            color: AppColors.primaryLight,
-            alignment: Alignment.center,
-            child: const Icon(
-              Icons.broken_image_outlined,
-              color: AppColors.primary,
-              size: 46,
-            ),
-          );
-        },
-      ),
     );
 
     return InkWell(
@@ -283,7 +258,7 @@ class _ChatImage extends StatelessWidget {
                       maxScale: 4,
                       child: Center(
                         child: Image.network(
-                          value,
+                          AppNetworkImage.optimizedUrl(value, quality: 90),
                           fit: BoxFit.contain,
                           errorBuilder: (_, __, ___) => const Icon(
                             Icons.broken_image_outlined,

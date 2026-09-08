@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 
 import '../../../../app/theme/app_colors.dart';
 import '../../../../core/widgets/activity_artwork.dart';
+import '../../../../core/widgets/app_network_image.dart';
 import '../../../../shared/models/activity.dart';
 import '../../../activities/presentation/widgets/activity_info_row.dart';
 import '../../../activities/presentation/widgets/participants_avatar_row.dart';
@@ -161,18 +162,12 @@ class _Artwork extends StatelessWidget {
       );
     }
 
-    return ClipRRect(
+    return AppNetworkImage(
+      url: cover,
+      width: 132,
+      height: 176,
+      fit: BoxFit.cover,
       borderRadius: BorderRadius.circular(18),
-      child: Image.network(
-        cover,
-        width: 132,
-        height: 176,
-        fit: BoxFit.cover,
-        errorBuilder: (_, __, ___) => ActivityArtwork(
-          category: activity.category,
-          height: 176,
-        ),
-      ),
     );
   }
 }

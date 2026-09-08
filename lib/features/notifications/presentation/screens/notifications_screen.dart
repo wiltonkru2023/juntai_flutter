@@ -1,7 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 
 import '../../../../app/theme/app_colors.dart';
 import '../../../../core/extensions/context_extensions.dart';
@@ -141,7 +140,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
 
     final explicitRoute = notification.route;
     if (explicitRoute != null && explicitRoute.isNotEmpty) {
-      context.push(explicitRoute);
+      NotificationService.instance.openRoute(explicitRoute);
       return;
     }
 
@@ -149,18 +148,23 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         notification.type == 'new_direct_message') {
       final actorId = notification.actorId;
       if (actorId != null && actorId.isNotEmpty) {
-        context.push('/message/$actorId');
+        NotificationService.instance.openRoute('/message/$actorId');
+      } else {
+        NotificationService.instance.openRoute('/notifications');
       }
       return;
     }
 
     final activityId = notification.activityId;
-    if (activityId == null || activityId.isEmpty) return;
+    if (activityId == null || activityId.isEmpty) {
+      NotificationService.instance.openRoute('/notifications');
+      return;
+    }
 
     if (notification.type == 'new_message') {
-      context.push('/chat/$activityId');
+      NotificationService.instance.openRoute('/chat/$activityId');
     } else {
-      context.push('/activity/$activityId');
+      NotificationService.instance.openRoute('/activity/$activityId');
     }
   }
 

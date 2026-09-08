@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../app/theme/app_colors.dart';
+import '../../../../core/widgets/app_network_image.dart';
 import '../../domain/discovery.dart';
 import 'post_metric_tracker.dart';
 
@@ -46,12 +47,12 @@ class DiscoveryCard extends StatelessWidget {
             children: [
               PostMetricTracker(postId: discovery.id, event: 'impression'),
               if ((discovery.coverUrl ?? '').isNotEmpty)
-                Image.network(
-                  discovery.coverUrl!,
+                AppNetworkImage(
+                  url: discovery.coverUrl,
                   height: 155,
                   width: double.infinity,
                   fit: BoxFit.cover,
-                  errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                  borderRadius: BorderRadius.zero,
                 ),
               Padding(
                 padding: const EdgeInsets.all(16),

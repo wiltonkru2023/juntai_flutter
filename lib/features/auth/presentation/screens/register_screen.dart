@@ -41,6 +41,15 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
 
   bool get commercialSignup => widget.accountKind != 'personal';
 
+  String get accountMode {
+    return switch (widget.accountKind) {
+      'professional' => 'professional',
+      'organizer' || 'institution' => 'organizer',
+      'business' => 'business',
+      _ => 'personal',
+    };
+  }
+
   String get _accountLabel {
     return switch (widget.accountKind) {
       'professional' => 'profissional',
@@ -171,7 +180,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
           'bio': '',
           'interests': <String>[],
           'photoUrl': '',
-          'accountMode': commercialSignup ? 'commercial' : 'personal',
+          'accountMode': accountMode,
           'commercialSignupType': commercialSignup ? widget.accountKind : null,
 
           // Dados iniciais do perfil.
