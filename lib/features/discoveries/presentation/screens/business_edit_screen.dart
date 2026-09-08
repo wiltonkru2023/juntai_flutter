@@ -1,16 +1,25 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/extensions/context_extensions.dart';
+import '../../../../core/formatters/br_input_formatters.dart';
 import '../../../../core/services/api_service.dart';
 import '../../../../core/services/image_upload_service.dart';
+import '../../../../core/widgets/address_autocomplete_field.dart';
 
 class BusinessEditScreen extends StatefulWidget {
-  const BusinessEditScreen({super.key, required this.editing});
+  const BusinessEditScreen({
+    super.key,
+    required this.editing,
+    this.initialAccountType,
+  });
+
   final bool editing;
+  final String? initialAccountType;
 
   @override
   State<BusinessEditScreen> createState() => _BusinessEditScreenState();
@@ -32,6 +41,8 @@ class _BusinessEditScreenState extends State<BusinessEditScreen> {
   String accountType = 'business';
   String? photoUrl;
   String? coverUrl;
+  double? latitude;
+  double? longitude;
   final galleryUrls = <String>[];
   bool loading = false;
   bool saving = false;
@@ -39,6 +50,7 @@ class _BusinessEditScreenState extends State<BusinessEditScreen> {
   @override
   void initState() {
     super.initState();
+    accountType = widget.initialAccountType ?? accountType;
     if (widget.editing) _load();
   }
 
@@ -67,6 +79,8 @@ class _BusinessEditScreenState extends State<BusinessEditScreen> {
       accountType = (d['accountType'] ?? 'business').toString();
       photoUrl = d['photoUrl']?.toString();
       coverUrl = d['coverUrl']?.toString();
+      latitude = (d['latitude'] as num?)?.toDouble();
+      longitude = (d['longitude'] as num?)?.toDouble();
       if (d['galleryUrls'] is List) {
         galleryUrls
           ..clear()
@@ -105,10 +119,14 @@ class _BusinessEditScreenState extends State<BusinessEditScreen> {
 
     setState(() => saving = true);
     try {
-      final points = await Geocoding().locationFromAddress(
-        '${address.text.trim()}, ${city.text.trim()} - ${state.text.trim()}, Brasil',
-      );
-      if (points.isEmpty) throw Exception('Endereço não encontrado');
+      if (latitude == null || longitude == null) {
+        final points = await Geocoding().locationFromAddress(
+          '${address.text.trim()}, ${city.text.trim()} - ${state.text.trim()}, Brasil',
+        );
+        if (points.isEmpty) throw Exception('Endereço não encontrado');
+        latitude = points.first.latitude;
+        longitude = points.first.longitude;
+      }
 
       final payload = <String, dynamic>{
         'name': name.text.trim(),
@@ -117,8 +135,8 @@ class _BusinessEditScreenState extends State<BusinessEditScreen> {
         'city': city.text.trim(),
         'state': state.text.trim(),
         'address': address.text.trim(),
-        'latitude': points.first.latitude,
-        'longitude': points.first.longitude,
+        'latitude': latitude,
+        'longitude': longitude,
         'phone': phone.text.trim(),
         'websiteUrl': website.text.trim(),
         'instagram': instagram.text.trim(),
@@ -177,6 +195,8 @@ class _BusinessEditScreenState extends State<BusinessEditScreen> {
     String label, {
     int maxLines = 1,
     TextInputType? keyboardType,
+    List<TextInputFormatter>? inputFormatters,
+    TextCapitalization textCapitalization = TextCapitalization.none,
   }) =>
       Padding(
         padding: const EdgeInsets.only(bottom: 12),
@@ -184,6 +204,8 @@ class _BusinessEditScreenState extends State<BusinessEditScreen> {
           controller: controller,
           maxLines: maxLines,
           keyboardType: keyboardType,
+          inputFormatters: inputFormatters,
+          textCapitalization: textCapitalization,
           decoration: InputDecoration(labelText: label),
         ),
       );
@@ -191,7 +213,9 @@ class _BusinessEditScreenState extends State<BusinessEditScreen> {
   @override
   Widget build(BuildContext context) => Scaffold(
         appBar: AppBar(
-          title: Text(widget.editing ? 'Editar comércio' : 'Criar comércio'),
+          title: Text(
+            widget.editing ? 'Editar perfil profissional' : 'Criar perfil',
+          ),
         ),
         body: loading
             ? const Center(child: CircularProgressIndicator())
@@ -228,32 +252,99 @@ class _BusinessEditScreenState extends State<BusinessEditScreen> {
                     ],
                   ),
                   const SizedBox(height: 16),
-                  field(name, 'Nome público'),
-                  field(username, '@usuário comercial'),
+                  const Text(
+                    'Tipo de perfil',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900),
+                  ),
+                  const SizedBox(height: 8),
                   DropdownButtonFormField<String>(
                     initialValue: accountType,
                     decoration:
                         const InputDecoration(labelText: 'Tipo de conta'),
                     items: const [
                       DropdownMenuItem(
-                          value: 'business', child: Text('Comércio')),
+                        value: 'business',
+                        child: Text('Comércio local'),
+                      ),
                       DropdownMenuItem(
-                          value: 'organizer', child: Text('Organizador')),
+                        value: 'professional',
+                        child: Text('Profissional autônomo'),
+                      ),
                       DropdownMenuItem(
-                          value: 'institution', child: Text('Instituição')),
+                        value: 'organizer',
+                        child: Text('Organizador de eventos'),
+                      ),
+                      DropdownMenuItem(
+                        value: 'institution',
+                        child: Text('Instituição'),
+                      ),
                     ],
                     onChanged: (v) =>
                         setState(() => accountType = v ?? 'business'),
                   ),
                   const SizedBox(height: 12),
-                  if (accountType != 'business')
-                    field(institutionType, 'Tipo de instituição/organizador'),
-                  field(category, 'Categoria'),
-                  field(city, 'Cidade'),
-                  field(state, 'Estado (UF)'),
-                  field(address, 'Endereço'),
-                  field(phone, 'Telefone', keyboardType: TextInputType.phone),
-                  field(website, 'Site'),
+                  field(
+                    name,
+                    accountType == 'professional'
+                        ? 'Nome profissional'
+                        : 'Nome público',
+                    textCapitalization: TextCapitalization.words,
+                  ),
+                  field(
+                    username,
+                    accountType == 'professional'
+                        ? '@usuário profissional'
+                        : '@usuário comercial',
+                    inputFormatters: [UsernameInputFormatter()],
+                  ),
+                  if (accountType == 'institution' ||
+                      accountType == 'organizer')
+                    field(
+                      institutionType,
+                      accountType == 'institution'
+                          ? 'Tipo de instituição'
+                          : 'Tipo de organizador',
+                    ),
+                  field(
+                    category,
+                    accountType == 'professional'
+                        ? 'Especialidade'
+                        : 'Categoria',
+                    textCapitalization: TextCapitalization.words,
+                  ),
+                  field(
+                    city,
+                    'Cidade',
+                    textCapitalization: TextCapitalization.words,
+                  ),
+                  field(
+                    state,
+                    'Estado (UF)',
+                    inputFormatters: [UfInputFormatter()],
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: AddressAutocompleteField(
+                      controller: address,
+                      label: 'Endereço',
+                      hint: 'Digite rua, número, bairro ou local',
+                      onSelected: (suggestion) {
+                        latitude = suggestion.latitude;
+                        longitude = suggestion.longitude;
+                      },
+                      onChanged: (_) {
+                        latitude = null;
+                        longitude = null;
+                      },
+                    ),
+                  ),
+                  field(
+                    phone,
+                    'Telefone / WhatsApp',
+                    keyboardType: TextInputType.phone,
+                    inputFormatters: [BrPhoneInputFormatter()],
+                  ),
+                  field(website, 'Site ou link profissional'),
                   field(instagram, 'Instagram'),
                   field(description, 'Sobre', maxLines: 4),
                   const SizedBox(height: 8),

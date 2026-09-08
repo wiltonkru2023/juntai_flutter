@@ -315,15 +315,40 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
                         ),
                       )
                     : conversationRows.isEmpty
-                        ? const Center(
-                            child: Text(
-                              'Nenhuma conversa ainda.',
-                              style: TextStyle(
-                                color: AppColors.textSecondary,
+                        ? Center(
+                            child: Padding(
+                              padding: const EdgeInsets.all(28),
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Image.asset(
+                                    'assets/icons/icone_mensagens.png',
+                                    height: 72,
+                                    fit: BoxFit.contain,
+                                  ),
+                                  const SizedBox(height: 14),
+                                  const Text(
+                                    'Nenhuma conversa ainda.',
+                                    style: TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.w900,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 6),
+                                  const Text(
+                                    'Entre em uma atividade ou mande mensagem para alguém.',
+                                    textAlign: TextAlign.center,
+                                    style: TextStyle(
+                                      color: AppColors.textSecondary,
+                                      height: 1.35,
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
                           )
                         : ListView.separated(
+                            padding: const EdgeInsets.only(bottom: 16),
                             itemCount: conversationRows.length,
                             itemBuilder: (context, index) {
                               final row = conversationRows[index];
@@ -338,10 +363,8 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
                                 ),
                               );
                             },
-                            separatorBuilder: (_, __) => const Divider(
-                              height: 1,
-                              indent: 84,
-                            ),
+                            separatorBuilder: (_, __) =>
+                                const SizedBox(height: 2),
                           ),
           ),
         ],

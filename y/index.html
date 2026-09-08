@@ -1,0 +1,226 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Juntaí Admin</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --bg: #f5f7fb;
+        --surface: #ffffff;
+        --ink: #151922;
+        --muted: #697386;
+        --line: #dfe5ee;
+        --primary: #08a77b;
+        --primary-dark: #067a5d;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--ink);
+        font-family: Inter, ui-sans-serif, system-ui, -apple-system,
+          BlinkMacSystemFont, "Segoe UI", sans-serif;
+      }
+
+      header {
+        position: sticky;
+        top: 0;
+        border-bottom: 1px solid var(--line);
+        background: rgba(255, 255, 255, 0.92);
+        backdrop-filter: blur(14px);
+      }
+
+      .bar,
+      main {
+        width: min(1120px, calc(100% - 32px));
+        margin: 0 auto;
+      }
+
+      .bar {
+        min-height: 72px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+      }
+
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        font-weight: 900;
+        font-size: 22px;
+      }
+
+      .mark {
+        width: 40px;
+        height: 40px;
+        border-radius: 14px;
+        background: var(--primary);
+        display: grid;
+        place-items: center;
+        color: #fff;
+      }
+
+      main {
+        padding: 34px 0 46px;
+      }
+
+      .hero {
+        display: grid;
+        grid-template-columns: 1.25fr 0.75fr;
+        gap: 18px;
+        align-items: stretch;
+      }
+
+      .panel,
+      .card {
+        background: var(--surface);
+        border: 1px solid var(--line);
+        border-radius: 18px;
+      }
+
+      .panel {
+        padding: 28px;
+      }
+
+      h1 {
+        margin: 0;
+        font-size: clamp(32px, 5vw, 52px);
+        line-height: 1;
+        letter-spacing: 0;
+      }
+
+      p {
+        color: var(--muted);
+        line-height: 1.6;
+      }
+
+      .actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-top: 24px;
+      }
+
+      a.button {
+        color: #fff;
+        background: var(--primary);
+        padding: 12px 16px;
+        border-radius: 14px;
+        text-decoration: none;
+        font-weight: 800;
+      }
+
+      a.button.secondary {
+        color: var(--ink);
+        background: #eef3f8;
+      }
+
+      .status {
+        display: grid;
+        gap: 12px;
+      }
+
+      .metric {
+        padding: 18px;
+      }
+
+      .metric strong {
+        display: block;
+        font-size: 26px;
+      }
+
+      .grid {
+        margin-top: 18px;
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 14px;
+      }
+
+      .card {
+        padding: 18px;
+      }
+
+      .card h2 {
+        margin: 0 0 8px;
+        font-size: 18px;
+      }
+
+      .tag {
+        padding: 8px 10px;
+        border-radius: 999px;
+        background: #e7f8f2;
+        color: var(--primary-dark);
+        font-size: 13px;
+        font-weight: 800;
+      }
+
+      @media (max-width: 820px) {
+        .hero,
+        .grid {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <div class="bar">
+        <div class="brand">
+          <div class="mark">J</div>
+          Juntaí Admin
+        </div>
+        <span class="tag">produção</span>
+      </div>
+    </header>
+
+    <main>
+      <section class="hero">
+        <div class="panel">
+          <h1>Central operacional do Juntaí</h1>
+          <p>
+            Acompanhe saúde da API, deploys, cron de lembretes e configuração
+            externa antes de liberar novas versões do aplicativo.
+          </p>
+          <div class="actions">
+            <a class="button" href="https://juntai-flutter.onrender.com" target="_blank" rel="noreferrer">Abrir API</a>
+            <a class="button secondary" href="https://dashboard.render.com" target="_blank" rel="noreferrer">Render</a>
+            <a class="button secondary" href="https://github.com/wiltonkru2023/juntai_flutter/actions" target="_blank" rel="noreferrer">Actions</a>
+          </div>
+        </div>
+        <div class="status">
+          <div class="card metric">
+            <strong>15 min</strong>
+            Cron de lembretes pelo GitHub Actions
+          </div>
+          <div class="card metric">
+            <strong>Render</strong>
+            API Node com Mercado Pago, ImageKit e Firebase Admin
+          </div>
+        </div>
+      </section>
+
+      <section class="grid">
+        <article class="card">
+          <h2>Revisão comercial</h2>
+          <p>Aprovar perfis, validar categorias e acompanhar planos.</p>
+        </article>
+        <article class="card">
+          <h2>Moderação</h2>
+          <p>Centralizar denúncias, bloqueios e contas com risco.</p>
+        </article>
+        <article class="card">
+          <h2>Checklist release</h2>
+          <p>Testar login, pagamentos, push, chat e fluxos com duas contas.</p>
+        </article>
+      </section>
+    </main>
+  </body>
+</html>

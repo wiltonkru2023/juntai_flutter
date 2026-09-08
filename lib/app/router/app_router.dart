@@ -110,7 +110,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           ),
           GoRoute(
             path: '/business/create',
-            builder: (_, __) => const BusinessEditScreen(editing: false),
+            builder: (_, state) => BusinessEditScreen(
+              editing: false,
+              initialAccountType: state.uri.queryParameters['type'],
+            ),
           ),
           GoRoute(
             path: '/business/edit',

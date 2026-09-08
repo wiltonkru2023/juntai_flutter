@@ -66,8 +66,10 @@ class NotificationService {
       ) {
         final payload = response.payload?.trim();
 
-        if (payload != null && payload.isNotEmpty) {
-          _openRoute(payload);
+        final route = _normalizeRoute(payload);
+
+        if (route != null) {
+          _openRoute(route);
         }
       },
     );
@@ -79,7 +81,7 @@ class NotificationService {
     if (launchDetails?.didNotificationLaunchApp == true &&
         launchPayload != null &&
         launchPayload.isNotEmpty) {
-      _pendingRoute = launchPayload;
+      _pendingRoute = _normalizeRoute(launchPayload);
     }
 
     const channel = AndroidNotificationChannel(
@@ -156,8 +158,8 @@ class NotificationService {
   }
 
   void flushPendingNavigation() {
-    final route = _pendingRoute;
-    if (route == null || route.isEmpty) return;
+    final route = _normalizeRoute(_pendingRoute);
+    if (route == null) return;
 
     _pendingRoute = null;
     _openRoute(route);
@@ -344,8 +346,8 @@ class NotificationService {
   }
 
   String _routeFor(RemoteMessage message) {
-    final explicitRoute = message.data['route']?.toString();
-    if (explicitRoute != null && explicitRoute.isNotEmpty) {
+    final explicitRoute = _normalizeRoute(message.data['route']?.toString());
+    if (explicitRoute != null) {
       return explicitRoute;
     }
 
@@ -377,18 +379,51 @@ class NotificationService {
   }
 
   void _openRoute(String route) {
+    final normalizedRoute = _normalizeRoute(route);
+
+    if (normalizedRoute == null) {
+      return;
+    }
+
     final context = notificationNavigatorKey.currentContext;
 
     if (context == null) {
-      _pendingRoute = route;
+      _pendingRoute = normalizedRoute;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        flushPendingNavigation();
+      });
       return;
     }
 
     try {
-      GoRouter.of(context).go(route);
+      GoRouter.of(context).go(normalizedRoute);
     } catch (_) {
-      _pendingRoute = route;
+      _pendingRoute = normalizedRoute;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        flushPendingNavigation();
+      });
     }
+  }
+
+  String? _normalizeRoute(String? raw) {
+    final route = raw?.trim();
+    if (route == null || route.isEmpty) {
+      return null;
+    }
+
+    final uri = Uri.tryParse(route);
+    if (uri != null && uri.hasScheme) {
+      if (uri.scheme == 'juntai') {
+        final path = uri.path.isNotEmpty ? uri.path : '/${uri.host}';
+        return path.startsWith('/') ? path : '/$path';
+      }
+
+      if (uri.scheme == 'https' && uri.host == 'juntai-flutter.onrender.com') {
+        return uri.path.isNotEmpty ? uri.path : '/home';
+      }
+    }
+
+    return route.startsWith('/') ? route : '/$route';
   }
 
   Future<void> dispose() async {

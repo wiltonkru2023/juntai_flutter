@@ -34,27 +34,50 @@ class BusinessCenterScreen extends StatelessWidget {
             return ListView(
               padding: const EdgeInsets.all(24),
               children: [
-                const SizedBox(height: 30),
-                const Icon(Icons.storefront_rounded,
-                    size: 76, color: AppColors.primary),
                 const SizedBox(height: 18),
+                Image.asset(
+                  'assets/icons/icone_comunidade.png',
+                  height: 82,
+                  fit: BoxFit.contain,
+                ),
+                const SizedBox(height: 20),
                 const Text(
-                  'Transforme divulgação em movimento.',
+                  'Escolha como você quer aparecer no Juntaí.',
                   textAlign: TextAlign.center,
                   style: TextStyle(fontSize: 27, fontWeight: FontWeight.w900),
                 ),
                 const SizedBox(height: 10),
                 const Text(
-                  'Cadastre comércio, organizador ou instituição e transforme '
-                  'lugares, eventos e oportunidades em grupos reais.',
+                  'Comércios divulgam locais, promoções e vagas. Profissionais '
+                  'oferecem serviços, aulas, consultorias e experiências.',
                   textAlign: TextAlign.center,
                   style: TextStyle(color: AppColors.textSecondary, height: 1.4),
                 ),
                 const SizedBox(height: 28),
-                FilledButton.icon(
-                  onPressed: () => context.push('/business/create'),
-                  icon: const Icon(Icons.add_business_rounded),
-                  label: const Text('Criar perfil comercial'),
+                _CreateProfileCard(
+                  icon: Icons.storefront_rounded,
+                  title: 'Comércio local',
+                  body: 'Restaurantes, bares, academias, lojas e espaços.',
+                  action: 'Cadastrar comércio',
+                  onTap: () => context.push('/business/create?type=business'),
+                ),
+                const SizedBox(height: 12),
+                _CreateProfileCard(
+                  icon: Icons.badge_outlined,
+                  title: 'Profissional',
+                  body:
+                      'Personal, professor, guia, fotógrafo, terapeuta e mais.',
+                  action: 'Cadastrar profissional',
+                  onTap: () =>
+                      context.push('/business/create?type=professional'),
+                ),
+                const SizedBox(height: 12),
+                _CreateProfileCard(
+                  icon: Icons.event_available_rounded,
+                  title: 'Organizador ou instituição',
+                  body: 'Eventos, coletivos, ONGs, clubes e projetos.',
+                  action: 'Cadastrar organização',
+                  onTap: () => context.push('/business/create?type=organizer'),
                 ),
               ],
             );
@@ -157,4 +180,72 @@ class BusinessCenterScreen extends StatelessWidget {
       ),
     );
   }
+}
+
+class _CreateProfileCard extends StatelessWidget {
+  const _CreateProfileCard({
+    required this.icon,
+    required this.title,
+    required this.body,
+    required this.action,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String title;
+  final String body;
+  final String action;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) => Card(
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(18),
+          child: Padding(
+            padding: const EdgeInsets.all(18),
+            child: Row(
+              children: [
+                CircleAvatar(
+                  radius: 24,
+                  backgroundColor: AppColors.primaryLight,
+                  child: Icon(icon, color: AppColors.primary),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        style: const TextStyle(
+                          fontSize: 17,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        body,
+                        style: const TextStyle(
+                          color: AppColors.textSecondary,
+                          height: 1.25,
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      Text(
+                        action,
+                        style: const TextStyle(
+                          color: AppColors.primary,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const Icon(Icons.chevron_right_rounded),
+              ],
+            ),
+          ),
+        ),
+      );
 }

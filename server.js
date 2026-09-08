@@ -193,6 +193,7 @@ async function notify(uid, data) {
     body: String(data.body || ''),
     activityId: data.activityId ? String(data.activityId) : null,
     actorId: actorId || null,
+    route: data.route ? String(data.route) : null,
     read: false,
     createdAt: FieldValue.serverTimestamp(),
   };
@@ -214,7 +215,6 @@ async function notify(uid, data) {
     body: notificationData.body,
     activityId: notificationData.activityId || '',
     actorId: notificationData.actorId || '',
-    route: notificationData.route || '',
     route: notificationData.route || '',
   };
 

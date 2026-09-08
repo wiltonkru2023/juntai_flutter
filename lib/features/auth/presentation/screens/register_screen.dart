@@ -6,6 +6,8 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../app/theme/app_colors.dart';
 import '../../../../core/extensions/context_extensions.dart';
+import '../../../../core/formatters/br_input_formatters.dart';
+import '../../../../core/widgets/address_autocomplete_field.dart';
 import '../../../../core/services/username_service.dart';
 import '../../../../core/widgets/app_button.dart';
 import '../../../../core/widgets/app_text_field.dart';
@@ -24,9 +26,11 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   final username = TextEditingController();
   final pass = TextEditingController();
   final confirm = TextEditingController();
-  final city = TextEditingController();
+  final address = TextEditingController();
 
   DateTime? birth;
+  double? latitude;
+  double? longitude;
 
   bool terms = false;
   bool privacy = false;
@@ -41,7 +45,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
       username,
       pass,
       confirm,
-      city,
+      address,
     ]) {
       controller.dispose();
     }
@@ -67,7 +71,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     final emailValue = email.text.trim().toLowerCase();
     final usernameValue = UsernameService.normalize(username.text);
     final passwordValue = pass.text;
-    final cityValue = city.text.trim();
+    final addressValue = address.text.trim();
 
     if (nameValue.isEmpty) {
       context.snack('Informe seu nome.');
@@ -100,8 +104,8 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
       return;
     }
 
-    if (cityValue.isEmpty) {
-      context.snack('Informe sua cidade.');
+    if (addressValue.isEmpty) {
+      context.snack('Informe seu endereço ou cidade.');
       return;
     }
 
@@ -142,7 +146,11 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
           'uid': uid,
           'name': nameValue,
           'email': emailValue,
-          'city': cityValue,
+          'address': addressValue,
+          'city': _cityFromAddress(addressValue),
+          'state': _stateFromAddress(addressValue),
+          'latitude': latitude,
+          'longitude': longitude,
           'birthDate': Timestamp.fromDate(birth!),
 
           // Perfil será completado na próxima tela.
@@ -244,6 +252,18 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     }
   }
 
+  String _cityFromAddress(String value) {
+    final parts = value.split(',').map((item) => item.trim()).toList();
+    if (parts.length >= 3) return parts[parts.length - 3];
+    if (parts.length >= 2) return parts[parts.length - 2];
+    return value;
+  }
+
+  String _stateFromAddress(String value) {
+    final match = RegExp(r'\b([A-Z]{2})\b').firstMatch(value.toUpperCase());
+    return match?.group(1) ?? '';
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -283,6 +303,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
               controller: name,
               hint: 'Nome completo',
               prefixIcon: Icons.person_outline_rounded,
+              textCapitalization: TextCapitalization.words,
             ),
             const SizedBox(height: 12),
             AppTextField(
@@ -296,6 +317,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
               controller: username,
               hint: '@usuário único',
               prefixIcon: Icons.alternate_email_rounded,
+              inputFormatters: [UsernameInputFormatter()],
             ),
             const SizedBox(height: 12),
             AppTextField(
@@ -341,10 +363,18 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
               ),
             ),
             const SizedBox(height: 12),
-            AppTextField(
-              controller: city,
-              hint: 'Cidade',
-              prefixIcon: Icons.location_city_outlined,
+            AddressAutocompleteField(
+              controller: address,
+              label: 'Endereço ou cidade',
+              hint: 'Digite rua, bairro, cidade ou local',
+              onSelected: (suggestion) {
+                latitude = suggestion.latitude;
+                longitude = suggestion.longitude;
+              },
+              onChanged: (_) {
+                latitude = null;
+                longitude = null;
+              },
             ),
             const SizedBox(height: 12),
             CheckboxListTile(

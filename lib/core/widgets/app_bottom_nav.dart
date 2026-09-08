@@ -50,10 +50,16 @@ class AppBottomNav extends StatelessWidget {
             asset,
             width: size,
             height: size,
+            fit: BoxFit.contain,
             cacheWidth: (size * MediaQuery.devicePixelRatioOf(context)).round(),
             cacheHeight:
                 (size * MediaQuery.devicePixelRatioOf(context)).round(),
             filterQuality: FilterQuality.medium,
+            errorBuilder: (_, __, ___) => Icon(
+              Icons.circle_rounded,
+              color: active ? AppColors.primary : Colors.blueGrey,
+              size: size,
+            ),
           ),
         );
 
