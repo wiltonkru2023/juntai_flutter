@@ -102,7 +102,7 @@ class SettingsScreen extends StatelessWidget {
             _tile(
               context,
               Icons.alternate_email_rounded,
-              'Alterar @usuÃ¡rio',
+              'Alterar @usuário',
               () => context.go('/profile/username/change'),
             ),
             _tile(

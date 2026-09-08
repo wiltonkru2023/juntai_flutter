@@ -11,8 +11,9 @@ class BusinessCenterScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final uid = FirebaseAuth.instance.currentUser?.uid;
-    if (uid == null)
+    if (uid == null) {
       return const Scaffold(body: Center(child: Text('Faça login.')));
+    }
 
     return Scaffold(
       appBar: AppBar(
@@ -25,8 +26,9 @@ class BusinessCenterScreen extends StatelessWidget {
             .doc(uid)
             .snapshots(),
         builder: (context, snapshot) {
-          if (!snapshot.hasData)
+          if (!snapshot.hasData) {
             return const Center(child: CircularProgressIndicator());
+          }
 
           if (!snapshot.data!.exists) {
             return ListView(

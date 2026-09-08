@@ -1,0 +1,16 @@
+name: Juntai reminders cron
+
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
+
+jobs:
+  call-reminders:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Call reminders endpoint
+        run: |
+          curl -fsS -X POST \
+            "https://juntai-flutter.onrender.com/blueprint/cron/reminders" \
+            -H "x-cron-secret: ${{ secrets.CRON_SECRET }}"

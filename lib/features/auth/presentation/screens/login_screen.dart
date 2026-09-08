@@ -197,7 +197,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       final identityToken = apple.identityToken;
       if (identityToken == null || identityToken.isEmpty) {
         throw const GoogleAuthServiceException(
-          'A Apple nÃ£o retornou um token de identidade.',
+          'A Apple não retornou um token de identidade.',
         );
       }
 
@@ -227,7 +227,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
       if (user == null) {
         throw const GoogleAuthServiceException(
-          'NÃ£o foi possÃ­vel concluir o login com Apple.',
+          'Não foi possível concluir o login com Apple.',
         );
       }
 
@@ -249,21 +249,21 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       }
 
       _message(
-        'NÃ£o foi possÃ­vel entrar com Apple. '
-        'Confira a configuraÃ§Ã£o do provedor.',
+        'Não foi possível entrar com Apple. '
+        'Confira a configuração do provedor.',
       );
     } on FirebaseAuthException catch (error) {
       if (!mounted) return;
 
       _message(
-        error.message ?? 'NÃ£o foi possÃ­vel entrar com Apple.',
+        error.message ?? 'Não foi possível entrar com Apple.',
       );
     } on GoogleAuthServiceException catch (error) {
       if (!mounted) return;
       _message(error.message);
     } catch (_) {
       if (!mounted) return;
-      _message('NÃ£o foi possÃ­vel entrar com Apple.');
+      _message('Não foi possível entrar com Apple.');
     } finally {
       _setLoading(false);
     }
@@ -398,7 +398,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     try {
       await ApiService.instance.syncSocialCounters();
     } catch (_) {
-      // A sincronizaÃ§Ã£o Ã© corretiva e nÃ£o deve impedir o login.
+      // A sincronização é corretiva e não deve impedir o login.
     }
 
     await NotificationService.instance.syncTokenForCurrentUser();

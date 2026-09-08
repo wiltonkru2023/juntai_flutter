@@ -49,26 +49,32 @@ class _SponsorPostScreenState extends State<SponsorPostScreen> {
         body: ListView(
           padding: const EdgeInsets.all(22),
           children: [
-            RadioListTile<String>(
-              value: '24h',
+            RadioGroup<String>(
               groupValue: package,
-              onChanged: (v) => setState(() => package = v!),
-              title: const Text('Destacar por 24h'),
-              subtitle: const Text('R\$ 9,90'),
-            ),
-            RadioListTile<String>(
-              value: '3d',
-              groupValue: package,
-              onChanged: (v) => setState(() => package = v!),
-              title: const Text('Destacar por 3 dias'),
-              subtitle: const Text('R\$ 19,90'),
-            ),
-            RadioListTile<String>(
-              value: 'city3d',
-              groupValue: package,
-              onChanged: (v) => setState(() => package = v!),
-              title: const Text('Destaque na cidade por 3 dias'),
-              subtitle: const Text('R\$ 39,90'),
+              onChanged: (v) {
+                if (v != null) {
+                  setState(() => package = v);
+                }
+              },
+              child: const Column(
+                children: [
+                  RadioListTile<String>(
+                    value: '24h',
+                    title: Text('Destacar por 24h'),
+                    subtitle: Text('R\$ 9,90'),
+                  ),
+                  RadioListTile<String>(
+                    value: '3d',
+                    title: Text('Destacar por 3 dias'),
+                    subtitle: Text('R\$ 19,90'),
+                  ),
+                  RadioListTile<String>(
+                    value: 'city3d',
+                    title: Text('Destaque na cidade por 3 dias'),
+                    subtitle: Text('R\$ 39,90'),
+                  ),
+                ],
+              ),
             ),
             if (package == 'city3d')
               TextField(

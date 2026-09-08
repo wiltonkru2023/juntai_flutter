@@ -2043,7 +2043,7 @@ function bpUsername(value) {
     throw new ApiError(
       400,
       'invalid-username',
-      'Use letras, nÃºmeros, ponto ou _, comeÃ§ando por letra.',
+      'Use letras, números, ponto ou _, começando por letra.',
     );
   }
 
@@ -2157,7 +2157,7 @@ async function bpCreateBenefit({
         benefitValue ?? null,
       benefitLabel:
         benefitLabel ||
-        'BenefÃ­cio JuntaÃ­',
+        'Benefício Juntaí',
       participantIds: participants,
       participantCount:
         participants.length,
@@ -2180,7 +2180,7 @@ async function bpCreateBenefit({
   throw new ApiError(
     500,
     'code-generation-failed',
-    'NÃ£o foi possÃ­vel gerar o cÃ³digo.',
+    'Não foi possível gerar o código.',
   );
 }
 
@@ -2215,7 +2215,7 @@ async function bpAdmin(
     throw new ApiError(
       403,
       'admin-required',
-      'Acesso administrativo necessÃ¡rio.',
+      'Acesso administrativo necessário.',
     );
   } catch (error) {
     next(error);
@@ -2301,7 +2301,7 @@ async function bpPayment({
     throw new ApiError(
       502,
       'payment-provider-error',
-      'NÃ£o foi possÃ­vel iniciar o pagamento.',
+      'Não foi possível iniciar o pagamento.',
     );
   }
 
@@ -2368,12 +2368,12 @@ async function bpNotifyFollowers(
             title:
               String(
                 post.businessName ||
-                'Novidade no JuntaÃ­',
+                'Novidade no Juntaí',
               ),
             body:
               String(
                 post.title ||
-                'Nova publicaÃ§Ã£o',
+                'Nova publicação',
               ),
             route:
               `/discovery/${post.id}`,
@@ -2414,7 +2414,7 @@ app.post(
             throw new ApiError(
               404,
               'user-not-found',
-              'Perfil nÃ£o encontrado.',
+              'Perfil não encontrado.',
             );
           }
 
@@ -2430,7 +2430,7 @@ app.post(
             throw new ApiError(
               409,
               'username-taken',
-              'Este @usuÃ¡rio jÃ¡ estÃ¡ em uso.',
+              'Este @usuário já está em uso.',
             );
           }
 
@@ -2572,7 +2572,7 @@ app.post(
         throw new ApiError(
           400,
           'invalid-target',
-          'VocÃª nÃ£o pode seguir a si mesmo.',
+          'Você não pode seguir a si mesmo.',
         );
       }
 
@@ -2583,7 +2583,7 @@ app.post(
         throw new ApiError(
           403,
           'blocked',
-          'AÃ§Ã£o indisponÃ­vel entre usuÃ¡rios bloqueados.',
+          'Ação indisponível entre usuários bloqueados.',
         );
       }
 
@@ -2617,7 +2617,7 @@ app.post(
             throw new ApiError(
               404,
               'not-found',
-              'UsuÃ¡rio nÃ£o encontrado.',
+              'Usuário não encontrado.',
             );
           }
 
@@ -2729,8 +2729,8 @@ app.post(
             title:
               `@${String(
                 me.username ||
-                'alguÃ©m',
-              )} comeÃ§ou a seguir vocÃª`,
+                'alguém',
+              )} começou a seguir você`,
             body:
               String(me.name || ''),
             actorId: uid,
@@ -2766,7 +2766,7 @@ app.post(
         throw new ApiError(
           409,
           'already-exists',
-          'VocÃª jÃ¡ possui perfil comercial.',
+          'Você já possui perfil comercial.',
         );
       }
 
@@ -2797,7 +2797,7 @@ app.post(
         throw new ApiError(
           400,
           'invalid-location',
-          'LocalizaÃ§Ã£o invÃ¡lida.',
+          'Localização inválida.',
         );
       }
 
@@ -2815,7 +2815,7 @@ app.post(
         throw new ApiError(
           400,
           'invalid-account-type',
-          'Tipo de conta comercial invÃ¡lido.',
+          'Tipo de conta comercial inválido.',
         );
       }
 
@@ -2829,7 +2829,7 @@ app.post(
             throw new ApiError(
               409,
               'business-username-taken',
-              'Este @comercial jÃ¡ estÃ¡ em uso.',
+              'Este @comercial já está em uso.',
             );
           }
 
@@ -2992,7 +2992,7 @@ app.post(
         throw new ApiError(
           404,
           'not-found',
-          'Perfil comercial nÃ£o encontrado.',
+          'Perfil comercial não encontrado.',
         );
       }
 
@@ -3025,7 +3025,7 @@ app.post(
               throw new ApiError(
                 409,
                 'business-username-taken',
-                'Este @comercial jÃ¡ estÃ¡ em uso.',
+                'Este @comercial já está em uso.',
               );
             }
 
@@ -3240,7 +3240,7 @@ app.post(
             throw new ApiError(
               404,
               'not-found',
-              'ComÃ©rcio nÃ£o encontrado.',
+              'Comércio não encontrado.',
             );
           }
 
@@ -3345,7 +3345,7 @@ app.post(
         throw new ApiError(
           412,
           'not-following',
-          'Siga o comÃ©rcio primeiro.',
+          'Siga o comércio primeiro.',
         );
       }
 
@@ -3421,7 +3421,7 @@ app.post(
         throw new ApiError(
           400,
           'invalid-type',
-          'Tipo de publicaÃ§Ã£o invÃ¡lido.',
+          'Tipo de publicação inválido.',
         );
       }
 
@@ -3484,7 +3484,7 @@ app.post(
         throw new ApiError(
           409,
           'active-plan-limit',
-          'Seu plano atingiu o limite de publicaÃ§Ãµes ativas.',
+          'Seu plano atingiu o limite de publicações ativas.',
         );
       }
 
@@ -3510,7 +3510,7 @@ app.post(
         throw new ApiError(
           400,
           'invalid-date',
-          'O fim precisa ser depois do inÃ­cio.',
+          'O fim precisa ser depois do início.',
         );
       }
 
@@ -3547,7 +3547,7 @@ app.post(
         throw new ApiError(
           400,
           'invalid-capacity',
-          'Capacidade invÃ¡lida.',
+          'Capacidade inválida.',
         );
       }
 
@@ -3563,7 +3563,7 @@ app.post(
         throw new ApiError(
           400,
           'invalid-benefit',
-          'BenefÃ­cio invÃ¡lido.',
+          'Benefício inválido.',
         );
       }
 
@@ -3810,7 +3810,7 @@ app.post(
         throw new ApiError(
           404,
           'not-found',
-          'PublicaÃ§Ã£o nÃ£o encontrada.',
+          'Publicação não encontrada.',
         );
       }
 
@@ -3824,7 +3824,7 @@ app.post(
         throw new ApiError(
           403,
           'permission-denied',
-          'Sem permissÃ£o.',
+          'Sem permissão.',
         );
       }
 
@@ -4057,7 +4057,7 @@ app.post(
         throw new ApiError(
           404,
           'not-found',
-          'PublicaÃ§Ã£o nÃ£o encontrada.',
+          'Publicação não encontrada.',
         );
       }
 
@@ -4069,7 +4069,7 @@ app.post(
         throw new ApiError(
           403,
           'permission-denied',
-          'Sem permissÃ£o.',
+          'Sem permissão.',
         );
       }
 
@@ -4123,7 +4123,7 @@ app.post(
         throw new ApiError(
           400,
           'invalid-event',
-          'MÃ©trica invÃ¡lida.',
+          'Métrica inválida.',
         );
       }
 
@@ -4138,7 +4138,7 @@ app.post(
         throw new ApiError(
           404,
           'not-found',
-          'PublicaÃ§Ã£o nÃ£o encontrada.',
+          'Publicação não encontrada.',
         );
       }
 
@@ -4252,7 +4252,7 @@ app.post(
             throw new ApiError(
               404,
               'not-found',
-              'ComÃ©rcio nÃ£o encontrado.',
+              'Comércio não encontrado.',
             );
           }
 
@@ -4343,7 +4343,7 @@ app.post(
             throw new ApiError(
               404,
               'not-found',
-              'PublicaÃ§Ã£o nÃ£o encontrada.',
+              'Publicação não encontrada.',
             );
           }
 
@@ -4473,7 +4473,7 @@ app.post(
             throw new ApiError(
               404,
               'not-found',
-              'PublicaÃ§Ã£o nÃ£o encontrada.',
+              'Publicação não encontrada.',
             );
           }
 
@@ -4485,7 +4485,7 @@ app.post(
             throw new ApiError(
               409,
               'already-claimed',
-              'Sua vaga jÃ¡ estÃ¡ confirmada.',
+              'Sua vaga já está confirmada.',
             );
           }
 
@@ -4506,7 +4506,7 @@ app.post(
             throw new ApiError(
               412,
               'not-open-slots',
-              'Esta publicaÃ§Ã£o nÃ£o possui vagas.',
+              'Esta publicação não possui vagas.',
             );
           }
 
@@ -4544,7 +4544,7 @@ app.post(
               throw new ApiError(
                 400,
                 'slot-required',
-                'Escolha um horÃ¡rio.',
+                'Escolha um horário.',
               );
             }
 
@@ -4560,7 +4560,7 @@ app.post(
               throw new ApiError(
                 404,
                 'slot-not-found',
-                'HorÃ¡rio nÃ£o encontrado.',
+                'Horário não encontrado.',
               );
             }
 
@@ -4589,7 +4589,7 @@ app.post(
               throw new ApiError(
                 409,
                 'slot-full',
-                'HorÃ¡rio lotado.',
+                'Horário lotado.',
               );
             }
 
@@ -4741,11 +4741,11 @@ app.post(
                   type:
                     'group_discount_unlocked',
                   title:
-                    'BenefÃ­cio desbloqueado ðŸŽ',
+                    'Benefício desbloqueado 🎁',
                   body:
                     String(
                       post.groupBenefit ||
-                      'Seu grupo desbloqueou um benefÃ­cio.',
+                      'Seu grupo desbloqueou um benefício.',
                     ),
                   route:
                     `/benefit/${code}`,
@@ -4805,7 +4805,7 @@ app.post(
         throw new ApiError(
           404,
           'invalid-code',
-          'CÃ³digo nÃ£o encontrado.',
+          'Código não encontrado.',
         );
       }
 
@@ -4853,7 +4853,7 @@ app.post(
         throw new ApiError(
           403,
           'permission-denied',
-          'VocÃª nÃ£o pode acessar este benefÃ­cio.',
+          'Você não pode acessar este benefício.',
         );
       }
 
@@ -4907,7 +4907,7 @@ app.post(
             throw new ApiError(
               404,
               'invalid-code',
-              'CÃ³digo nÃ£o encontrado.',
+              'Código não encontrado.',
             );
           }
 
@@ -4942,7 +4942,7 @@ app.post(
             throw new ApiError(
               403,
               'permission-denied',
-              'Somente o comÃ©rcio pode validar este cÃ³digo.',
+              'Somente o comércio pode validar este código.',
             );
           }
 
@@ -4951,7 +4951,7 @@ app.post(
             throw new ApiError(
               409,
               'already-redeemed',
-              'Este cÃ³digo jÃ¡ foi utilizado.',
+              'Este código já foi utilizado.',
             );
           }
 
@@ -5051,7 +5051,7 @@ app.post(
             throw new ApiError(
               404,
               'not-found',
-              'Descoberta ou atividade nÃ£o encontrada.',
+              'Descoberta ou atividade não encontrada.',
             );
           }
 
@@ -5069,7 +5069,7 @@ app.post(
             throw new ApiError(
               403,
               'invalid-source',
-              'VÃ­nculo de atividade invÃ¡lido.',
+              'Vínculo de atividade inválido.',
             );
           }
 
@@ -5168,7 +5168,7 @@ app.post(
         throw new ApiError(
           404,
           'not-found',
-          'Atividade nÃ£o encontrada.',
+          'Atividade não encontrada.',
         );
       }
 
@@ -5184,7 +5184,7 @@ app.post(
         throw new ApiError(
           403,
           'permission-denied',
-          'Sem permissÃ£o.',
+          'Sem permissão.',
         );
       }
 
@@ -5198,7 +5198,7 @@ app.post(
         throw new ApiError(
           412,
           'not-participant',
-          'UsuÃ¡rio nÃ£o participa.',
+          'Usuário não participa.',
         );
       }
 
@@ -5320,7 +5320,7 @@ app.post(
         throw new ApiError(
           404,
           'not-found',
-          'Perfil comercial nÃ£o encontrado.',
+          'Perfil comercial não encontrado.',
         );
       }
 
@@ -5401,14 +5401,14 @@ app.post(
         throw new ApiError(
           400,
           'invalid-plan',
-          'Plano invÃ¡lido.',
+          'Plano inválido.',
         );
       }
 
       const checkoutUrl =
         await bpPayment({
           title:
-            `JuntaÃ­ ${plan.toUpperCase()} - mensal`,
+            `Juntaí ${plan.toUpperCase()} - mensal`,
           price:
             spec.price,
           externalReference:
@@ -5456,7 +5456,7 @@ app.post(
         throw new ApiError(
           400,
           'invalid-package',
-          'Pacote invÃ¡lido.',
+          'Pacote inválido.',
         );
       }
 
@@ -5475,7 +5475,7 @@ app.post(
         throw new ApiError(
           403,
           'permission-denied',
-          'PublicaÃ§Ã£o invÃ¡lida.',
+          'Publicação inválida.',
         );
       }
 
@@ -5498,7 +5498,7 @@ app.post(
       const checkoutUrl =
         await bpPayment({
           title:
-            `Destaque JuntaÃ­ ${packageId}`,
+            `Destaque Juntaí ${packageId}`,
           price:
             prices[packageId],
           externalReference:
@@ -5760,7 +5760,7 @@ app.post(
         throw new ApiError(
           400,
           'invalid-report-type',
-          'Tipo de denÃºncia invÃ¡lido.',
+          'Tipo de denúncia inválido.',
         );
       }
 
@@ -5816,7 +5816,7 @@ app.post(
         throw new ApiError(
           403,
           'admin-required',
-          'E-mail nÃ£o autorizado.',
+          'E-mail não autorizado.',
         );
       }
 
@@ -5926,7 +5926,7 @@ app.post(
         throw new ApiError(
           400,
           'invalid-action',
-          'AÃ§Ã£o invÃ¡lida.',
+          'Ação inválida.',
         );
       }
 
@@ -6005,7 +6005,7 @@ app.post(
         throw new ApiError(
           400,
           'invalid-plan',
-          'Plano invÃ¡lido.',
+          'Plano inválido.',
         );
       }
 
@@ -6061,7 +6061,7 @@ app.post(
         throw new ApiError(
           400,
           'invalid-status',
-          'Status invÃ¡lido.',
+          'Status inválido.',
         );
       }
 
@@ -6104,7 +6104,7 @@ app.post(
         throw new ApiError(
           401,
           'invalid-cron-secret',
-          'NÃ£o autorizado.',
+          'Não autorizado.',
         );
       }
 
@@ -6167,7 +6167,7 @@ app.post(
                     type:
                       'event_reminder',
                     title:
-                      'Sua atividade comeÃ§a em breve',
+                      'Sua atividade começa em breve',
                     body:
                       String(
                         activity.title ||
@@ -6284,11 +6284,11 @@ app.post(
                       type:
                         'group_discount_unlocked',
                       title:
-                        'BenefÃ­cio desbloqueado ðŸŽ',
+                        'Benefício desbloqueado 🎁',
                       body:
                         String(
                           d.groupBenefit ||
-                          'Seu grupo desbloqueou um benefÃ­cio.',
+                          'Seu grupo desbloqueou um benefício.',
                         ),
                       activityId:
                         activityDoc.id,
@@ -6338,7 +6338,7 @@ app.get(
         throw new ApiError(
           404,
           'not-found',
-          'ComÃ©rcio nÃ£o encontrado.',
+          'Comércio não encontrado.',
         );
       }
 
@@ -6347,7 +6347,7 @@ app.get(
 
       const title =
         escapeHtml(
-          d.name || 'JuntaÃ­',
+          d.name || 'Juntaí',
         );
 
       const text =
@@ -6359,7 +6359,7 @@ app.get(
 
       res.type('html')
         .send(
-          `<!doctype html><html lang="pt-BR"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${title} â€¢ JuntaÃ­</title><body style="font-family:system-ui;padding:30px;max-width:650px;margin:auto"><h1>JuntaÃ­</h1><h2>${title}</h2><p>${text}</p><a href="juntai:///business/${encodeURIComponent(id)}">Abrir no JuntaÃ­</a></body></html>`,
+          `<!doctype html><html lang="pt-BR"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${title} • Juntaí</title><body style="font-family:system-ui;padding:30px;max-width:650px;margin:auto"><h1>Juntaí</h1><h2>${title}</h2><p>${text}</p><a href="juntai:///business/${encodeURIComponent(id)}">Abrir no Juntaí</a></body></html>`,
         );
     } catch (error) {
       next(error);
@@ -6388,7 +6388,7 @@ app.get(
         throw new ApiError(
           404,
           'not-found',
-          'Descoberta nÃ£o encontrada.',
+          'Descoberta não encontrada.',
         );
       }
 
@@ -6408,7 +6408,7 @@ app.get(
 
       res.type('html')
         .send(
-          `<!doctype html><html lang="pt-BR"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${title} â€¢ JuntaÃ­</title><body style="font-family:system-ui;padding:30px;max-width:650px;margin:auto"><h1>JuntaÃ­</h1><h2>${title}</h2><p>${text}</p><a href="juntai:///discovery/${encodeURIComponent(id)}">Abrir no JuntaÃ­</a></body></html>`,
+          `<!doctype html><html lang="pt-BR"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${title} • Juntaí</title><body style="font-family:system-ui;padding:30px;max-width:650px;margin:auto"><h1>Juntaí</h1><h2>${title}</h2><p>${text}</p><a href="juntai:///discovery/${encodeURIComponent(id)}">Abrir no Juntaí</a></body></html>`,
         );
     } catch (error) {
       next(error);
@@ -6435,7 +6435,7 @@ app.get(
         throw new ApiError(
           404,
           'not-found',
-          'Perfil nÃ£o encontrado.',
+          'Perfil não encontrado.',
         );
       }
 
@@ -6462,7 +6462,7 @@ app.get(
 
       res.type('html')
         .send(
-          `<!doctype html><html lang="pt-BR"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${title} â€¢ JuntaÃ­</title><body style="font-family:system-ui;padding:30px;max-width:650px;margin:auto"><h1>JuntaÃ­</h1><h2>${title}</h2><p>@${escapeHtml(username)}</p><a href="juntai:///profile/${encodeURIComponent(username)}">Abrir no JuntaÃ­</a></body></html>`,
+          `<!doctype html><html lang="pt-BR"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${title} • Juntaí</title><body style="font-family:system-ui;padding:30px;max-width:650px;margin:auto"><h1>Juntaí</h1><h2>${title}</h2><p>@${escapeHtml(username)}</p><a href="juntai:///profile/${encodeURIComponent(username)}">Abrir no Juntaí</a></body></html>`,
         );
     } catch (error) {
       next(error);
@@ -6493,7 +6493,7 @@ app.get(
         throw new ApiError(
           404,
           'not-found',
-          'BenefÃ­cio nÃ£o encontrado.',
+          'Benefício não encontrado.',
         );
       }
 
@@ -6502,7 +6502,7 @@ app.get(
 
       res.type('html')
         .send(
-          `<!doctype html><html lang="pt-BR"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>BenefÃ­cio JuntaÃ­</title><body style="font-family:system-ui;padding:30px;max-width:650px;margin:auto"><h1>JuntaÃ­</h1><h2>${escapeHtml(d.benefitLabel || 'BenefÃ­cio')}</h2><p><strong>${escapeHtml(code)}</strong></p><a href="juntai:///benefit/${encodeURIComponent(code)}">Abrir no JuntaÃ­</a></body></html>`,
+          `<!doctype html><html lang="pt-BR"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Benefício Juntaí</title><body style="font-family:system-ui;padding:30px;max-width:650px;margin:auto"><h1>Juntaí</h1><h2>${escapeHtml(d.benefitLabel || 'Benefício')}</h2><p><strong>${escapeHtml(code)}</strong></p><a href="juntai:///benefit/${encodeURIComponent(code)}">Abrir no Juntaí</a></body></html>`,
         );
     } catch (error) {
       next(error);
@@ -6520,7 +6520,7 @@ app.get(
 
     res.type('html')
       .send(
-        `<!doctype html><html lang="pt-BR"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><body style="font-family:system-ui;padding:30px;text-align:center"><h1>JuntaÃ­</h1><p>Pagamento: ${status}</p><a href="juntai:///business">Voltar ao app</a></body></html>`,
+        `<!doctype html><html lang="pt-BR"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><body style="font-family:system-ui;padding:30px;text-align:center"><h1>Juntaí</h1><p>Pagamento: ${status}</p><a href="juntai:///business">Voltar ao app</a></body></html>`,
       );
   },
 );

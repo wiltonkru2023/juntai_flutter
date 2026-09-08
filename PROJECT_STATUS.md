@@ -90,7 +90,7 @@
 
 ## Interesses
 - [x] whitelist canônica
-- [x] migração de MÃºsica → Música
+- [x] normalização de variações legadas de Música
 - [x] remoção fora da lista
 
 ## Deep links
@@ -106,6 +106,8 @@
 
 ## Navegação
 - [x] Descobrir como área principal
+- [x] ícones principais adicionados à navegação inferior
+- [x] versões leves dos ícones para bottom nav
 
 ## Instituições
 - [x] commerce
@@ -137,10 +139,16 @@
 - [x] código Flutter implementado
 - [ ] ativar Apple no Firebase/Apple Developer
 
+## Testes
+- [x] testes unitários/widget básicos
+- [x] smoke test inicial em integration_test
+- [ ] fluxos completos com Firebase Emulator
+
 ## Configurações externas
 - [ ] MERCADO_PAGO_ACCESS_TOKEN
 - [ ] ADMIN_EMAILS
 - [ ] CRON_SECRET
+- [ ] credenciais ImageKit
 - [ ] ativar Apple
 - [ ] testar pagamento real
 - [ ] testar em duas contas/aparelhos

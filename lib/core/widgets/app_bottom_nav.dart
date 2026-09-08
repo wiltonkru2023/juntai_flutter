@@ -42,7 +42,22 @@ class AppBottomNav extends StatelessWidget {
   Widget build(BuildContext context) {
     final idx = currentIndex;
 
-    Widget item(int i, IconData icon, String label) {
+    Widget navIcon(String asset, bool active, {double size = 28}) =>
+        AnimatedOpacity(
+          opacity: active ? 1 : .58,
+          duration: const Duration(milliseconds: 160),
+          child: Image.asset(
+            asset,
+            width: size,
+            height: size,
+            cacheWidth: (size * MediaQuery.devicePixelRatioOf(context)).round(),
+            cacheHeight:
+                (size * MediaQuery.devicePixelRatioOf(context)).round(),
+            filterQuality: FilterQuality.medium,
+          ),
+        );
+
+    Widget item(int i, String asset, String label) {
       final active = idx == i;
 
       return Expanded(
@@ -53,11 +68,7 @@ class AppBottomNav extends StatelessWidget {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(
-                  icon,
-                  color: active ? AppColors.primary : Colors.blueGrey,
-                  size: 25,
-                ),
+                navIcon(asset, active),
                 const SizedBox(height: 3),
                 Text(
                   label,
@@ -92,8 +103,8 @@ class AppBottomNav extends StatelessWidget {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.end,
           children: [
-            item(0, Icons.home_rounded, 'Início'),
-            item(1, Icons.explore_outlined, 'Descobrir'),
+            item(0, 'assets/icons/nav/icone_inicio.png', 'Início'),
+            item(1, 'assets/icons/nav/icone_explorar.png', 'Descobrir'),
             Expanded(
               child: InkWell(
                 onTap: () => go(context, 2),
@@ -119,10 +130,13 @@ class AppBottomNav extends StatelessWidget {
                             ),
                           ],
                         ),
-                        child: const Icon(
-                          Icons.add_rounded,
-                          color: Colors.white,
-                          size: 34,
+                        child: Padding(
+                          padding: const EdgeInsets.all(10),
+                          child: navIcon(
+                            'assets/icons/nav/icone_criar.png',
+                            true,
+                            size: 42,
+                          ),
                         ),
                       ),
                     ),
@@ -144,10 +158,10 @@ class AppBottomNav extends StatelessWidget {
             ),
             item(
               3,
-              Icons.chat_bubble_outline_rounded,
+              'assets/icons/nav/icone_mensagens.png',
               'Conversas',
             ),
-            item(4, Icons.person_outline_rounded, 'Perfil'),
+            item(4, 'assets/icons/nav/icone_perfil.png', 'Perfil'),
           ],
         ),
       ),

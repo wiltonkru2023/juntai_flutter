@@ -40,8 +40,9 @@ class _BusinessDashboardScreenState extends State<BusinessDashboardScreen> {
                 .doc(uid)
                 .snapshots(),
             builder: (context, business) {
-              if (!business.hasData)
+              if (!business.hasData) {
                 return const Center(child: CircularProgressIndicator());
+              }
 
               final d = business.data!.data() ?? const <String, dynamic>{};
               final week = dashboard.data?['week'] is Map

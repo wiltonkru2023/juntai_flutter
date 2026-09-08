@@ -38,8 +38,9 @@ class InterestService {
       final text = raw.toString().trim();
       final normalized =
           canonical.contains(text) ? text : legacy[text.toLowerCase()];
-      if (normalized != null && !result.contains(normalized))
+      if (normalized != null && !result.contains(normalized)) {
         result.add(normalized);
+      }
     }
     return result;
   }

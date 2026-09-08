@@ -206,8 +206,9 @@ class _BusinessEditScreenState extends State<BusinessEditScreen> {
                           label: 'Avatar',
                           onTap: () async {
                             final url = await _image();
-                            if (url != null && mounted)
+                            if (url != null && mounted) {
                               setState(() => photoUrl = url);
+                            }
                           },
                         ),
                       ),
@@ -218,8 +219,9 @@ class _BusinessEditScreenState extends State<BusinessEditScreen> {
                           label: 'Capa',
                           onTap: () async {
                             final url = await _image();
-                            if (url != null && mounted)
+                            if (url != null && mounted) {
                               setState(() => coverUrl = url);
+                            }
                           },
                         ),
                       ),
@@ -291,8 +293,9 @@ class _BusinessEditScreenState extends State<BusinessEditScreen> {
                         InkWell(
                           onTap: () async {
                             final url = await _image();
-                            if (url != null && mounted)
+                            if (url != null && mounted) {
                               setState(() => galleryUrls.add(url));
+                            }
                           },
                           child: Container(
                             width: 90,

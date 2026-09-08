@@ -36,8 +36,9 @@ class _BenefitCodeScreenState extends State<BenefitCodeScreen> {
         body: FutureBuilder<Map<String, dynamic>>(
           future: ApiService.instance.benefitStatus(widget.code),
           builder: (_, snapshot) {
-            if (!snapshot.hasData)
+            if (!snapshot.hasData) {
               return const Center(child: CircularProgressIndicator());
+            }
             final data = snapshot.data!;
             final code = (data['code'] ?? widget.code).toString();
             final status = (data['status'] ?? '').toString();

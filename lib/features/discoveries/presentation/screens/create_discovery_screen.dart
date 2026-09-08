@@ -424,8 +424,9 @@ class _CreateDiscoveryScreenState extends State<CreateDiscoveryScreen> {
                   OutlinedButton.icon(
                     onPressed: () async {
                       final url = await _pickImage();
-                      if (url != null && mounted)
+                      if (url != null && mounted) {
                         setState(() => coverUrl = url);
+                      }
                     },
                     icon: const Icon(Icons.add_photo_alternate_rounded),
                     label: Text(
@@ -458,8 +459,9 @@ class _CreateDiscoveryScreenState extends State<CreateDiscoveryScreen> {
                         IconButton.filledTonal(
                           onPressed: () async {
                             final url = await _pickImage();
-                            if (url != null && mounted)
+                            if (url != null && mounted) {
                               setState(() => galleryUrls.add(url));
+                            }
                           },
                           icon: const Icon(Icons.add_photo_alternate_rounded),
                         ),

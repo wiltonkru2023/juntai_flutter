@@ -20,8 +20,9 @@ class BusinessMetricsScreen extends StatelessWidget {
               .where('businessId', isEqualTo: businessId)
               .snapshots(),
           builder: (_, snapshot) {
-            if (!snapshot.hasData)
+            if (!snapshot.hasData) {
               return const Center(child: CircularProgressIndicator());
+            }
 
             final posts =
                 snapshot.data!.docs.map(Discovery.fromFirestore).toList();

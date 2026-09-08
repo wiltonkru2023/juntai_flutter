@@ -356,8 +356,9 @@ class _PhotosTab extends StatelessWidget {
         ...(data['galleryUrls'] as List).map((e) => e.toString()),
     ].where((e) => e.isNotEmpty).toSet().toList();
 
-    if (urls.isEmpty)
+    if (urls.isEmpty) {
       return const Center(child: Text('Nenhuma foto publicada.'));
+    }
 
     return GridView.builder(
       padding: const EdgeInsets.all(12),

@@ -2,8 +2,9 @@ abstract final class Validators {
   static String? email(String? value) {
     final v = (value ?? '').trim();
     if (v.isEmpty) return 'Informe seu e-mail.';
-    if (!v.contains('@') || !v.contains('.'))
+    if (!v.contains('@') || !v.contains('.')) {
       return 'Informe um e-mail válido.';
+    }
     return null;
   }
 
